@@ -1,0 +1,31 @@
+{
+  "name": "tourze/async-messenger-bundle",
+  "description": "",
+  "type": "symfony-bundle",
+  "license": "MIT",
+  "require": {
+    "php": "^8.1",
+    "symfony/config": "^6.4",
+    "symfony/console": "^6.4",
+    "symfony/dependency-injection": "^6.4",
+    "symfony/framework-bundle": "^6.4",
+    "symfony/http-kernel": "^6.4",
+    "symfony/messenger": "^6.4",
+    "symfony/yaml": "^6.4 || ^7.1"
+  },
+  "require-dev": {
+    "phpstan/phpstan": "^2.1",
+    "phpunit/phpunit": "^10.0",
+    "symfony/phpunit-bridge": "^6.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "Tourze\\AsyncMessengerBundle\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tourze\\AsyncMessengerBundle\\Tests\\": "tests"
+    }
+  }
+}
