@@ -12,8 +12,6 @@
 namespace Tourze\AsyncMessengerBundle\Redis;
 
 use Symfony\Component\Messenger\Envelope;
-use Symfony\Component\Messenger\Transport\CloseableTransportInterface;
-use Symfony\Component\Messenger\Transport\Receiver\KeepaliveReceiverInterface;
 use Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface;
 use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
@@ -24,7 +22,7 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
  * @author Alexander Schranz <alexander@sulu.io>
  * @author Antoine Bluchet <soyuka@gmail.com>
  */
-class RedisTransport implements TransportInterface, KeepaliveReceiverInterface, SetupableTransportInterface, CloseableTransportInterface, MessageCountAwareInterface
+class RedisTransport implements TransportInterface, SetupableTransportInterface, MessageCountAwareInterface
 {
     private SerializerInterface $serializer;
     private RedisReceiver $receiver;
