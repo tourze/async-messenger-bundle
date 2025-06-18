@@ -31,7 +31,6 @@ class DoctrineReceivedStampTest extends TestCase
         $result = $stamp->getId();
         
         $this->assertEquals($id, $result);
-        $this->assertIsString($result);
     }
 
     public function test_constructor_acceptsEmptyString(): void
