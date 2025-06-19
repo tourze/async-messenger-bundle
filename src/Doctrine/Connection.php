@@ -47,6 +47,7 @@ class Connection implements ResetInterface
         'queue_name' => 'default',
         'redeliver_timeout' => 3600,
         'auto_setup' => true,
+        'use_notify' => true,
     ];
 
     protected ?float $queueEmptiedAt = null;
@@ -119,7 +120,7 @@ class Connection implements ResetInterface
      */
     public function send(string $body, array $headers, int $delay = 0): string
     {
-        $now = new \DateTimeImmutable('UTC');
+        $now = new \DateTimeImmutable();
         $availableAt = $now->modify(\sprintf('%+d seconds', $delay / 1000));
 
         $queryBuilder = $this->driverConnection->createQueryBuilder()
@@ -402,7 +403,7 @@ class Connection implements ResetInterface
                 ->update($this->configuration['table_name'])
                 ->set('delivered_at', '?')
                 ->where('id = ?');
-            $now = new \DateTimeImmutable('UTC');
+            $now = new \DateTimeImmutable();
             $this->executeStatement($queryBuilder->getSQL(), [
                 $now,
                 $doctrineEnvelope['id'],
@@ -427,7 +428,7 @@ class Connection implements ResetInterface
 
     private function createAvailableMessagesQueryBuilder(): QueryBuilder
     {
-        $now = new \DateTimeImmutable('UTC');
+        $now = new \DateTimeImmutable();
         $redeliverLimit = $now->modify(\sprintf('-%d seconds', $this->configuration['redeliver_timeout']));
 
         return $this->createQueryBuilder()
@@ -534,7 +535,7 @@ class Connection implements ResetInterface
                 ->update($this->configuration['table_name'])
                 ->set('delivered_at', '?')
                 ->where('id = ?');
-            $now = new \DateTimeImmutable('UTC');
+            $now = new \DateTimeImmutable();
             $this->executeStatement($queryBuilder->getSQL(), [
                 $now,
                 $id,
