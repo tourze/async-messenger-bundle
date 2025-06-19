@@ -6,16 +6,20 @@
   "require": {
     "php": "^8.1",
     "doctrine/dbal": "^4.0",
+    "doctrine/doctrine-bundle": "^2.13",
     "doctrine/persistence": "^3.1 || ^4",
+    "snc/redis-bundle": "^4.8",
     "symfony/config": "^6.4",
     "symfony/console": "^6.4",
     "symfony/dependency-injection": "^6.4",
+    "symfony/doctrine-bridge": "^6.4",
     "symfony/framework-bundle": "^6.4",
     "symfony/http-kernel": "^6.4",
     "symfony/messenger": "^6.4",
     "symfony/service-contracts": "^3.5",
     "symfony/yaml": "^6.4 || ^7.1",
-    "tourze/async-contracts": "0.0.*"
+    "tourze/async-contracts": "0.0.*",
+    "tourze/bundle-dependency": "0.0.*"
   },
   "require-dev": {
     "phpstan/phpstan": "^2.1",

@@ -30,8 +30,8 @@ class DoctrineTransport implements TransportInterface, SetupableTransportInterfa
     private DoctrineSender $sender;
 
     public function __construct(
-        private Connection $connection,
-        private SerializerInterface $serializer,
+        private readonly Connection $connection,
+        private readonly SerializerInterface $serializer,
     ) {
     }
 
