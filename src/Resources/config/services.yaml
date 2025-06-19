@@ -6,3 +6,6 @@ services:
 
 #  Tourze\AsyncMessengerBundle\MessageHandler\:
 #    resource: '../../MessageHandler/'
+
+  Tourze\AsyncMessengerBundle\Doctrine\DoctrineTransportFactory: ~
+  Tourze\AsyncMessengerBundle\Redis\RedisTransportFactory: ~

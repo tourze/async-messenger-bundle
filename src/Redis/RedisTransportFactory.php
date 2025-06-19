@@ -11,6 +11,8 @@
 
 namespace Tourze\AsyncMessengerBundle\Redis;
 
+use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
 use Symfony\Component\Messenger\Transport\TransportFactoryInterface;
 use Symfony\Component\Messenger\Transport\TransportInterface;
@@ -21,17 +23,24 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
  *
  * @implements TransportFactoryInterface<RedisTransport>
  */
+#[AutoconfigureTag('messenger.transport_factory')]
 class RedisTransportFactory implements TransportFactoryInterface
 {
+    public function __construct(
+        #[Autowire(service: 'snc_redis.default')] private readonly \Redis $redis,
+    )
+    {
+    }
+
     public function createTransport(#[\SensitiveParameter] string $dsn, array $options, SerializerInterface $serializer): TransportInterface
     {
         unset($options['transport_name']);
 
-        return new RedisTransport(Connection::fromDsn($dsn, $options), $serializer);
+        return new RedisTransport(Connection::fromDsn($dsn, $options, $this->redis), $serializer);
     }
 
     public function supports(#[\SensitiveParameter] string $dsn, array $options): bool
     {
-        return str_starts_with($dsn, 'redis:') || str_starts_with($dsn, 'rediss:') || str_starts_with($dsn, 'valkey:') || str_starts_with($dsn, 'valkeys:');
+        return str_starts_with($dsn, 'async-redis://');
     }
 }

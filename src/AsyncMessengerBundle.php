@@ -8,6 +8,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 use Tourze\AsyncMessengerBundle\DependencyInjection\RemoveUnusedServicePass;
 use Tourze\BundleDependency\BundleDependencyInterface;
+use Tourze\DoctrineDedicatedConnectionBundle\DoctrineDedicatedConnectionBundle;
 
 class AsyncMessengerBundle extends Bundle implements BundleDependencyInterface
 {
@@ -22,6 +23,7 @@ class AsyncMessengerBundle extends Bundle implements BundleDependencyInterface
         return [
             DoctrineBundle::class => ['all' => true],
             SncRedisBundle::class => ['all' => true],
+            DoctrineDedicatedConnectionBundle::class => ['all' => true],
         ];
     }
 }
