@@ -4,7 +4,7 @@ namespace Tourze\AsyncMessengerBundle\Tests\Doctrine;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Stamp\NonSendableStampInterface;
-use Tourze\AsyncMessengerBundle\Doctrine\DoctrineReceivedStamp;
+use Tourze\AsyncMessengerBundle\Stamp\DoctrineReceivedStamp;
 
 class DoctrineReceivedStampTest extends TestCase
 {

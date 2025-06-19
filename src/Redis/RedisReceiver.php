@@ -19,6 +19,7 @@ use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
 use Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface;
 use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
+use Tourze\AsyncMessengerBundle\Stamp\RedisReceivedStamp;
 
 /**
  * @author Alexander Schranz <alexander@sulu.io>
@@ -29,7 +30,7 @@ class RedisReceiver implements MessageCountAwareInterface
     private SerializerInterface $serializer;
 
     public function __construct(
-        private Connection $connection,
+        private readonly Connection $connection,
         ?SerializerInterface $serializer = null,
     ) {
         $this->serializer = $serializer ?? new PhpSerializer();
@@ -47,7 +48,7 @@ class RedisReceiver implements MessageCountAwareInterface
             try {
                 $this->connection->reject($message['id']);
             } catch (TransportException $e) {
-                if ($e->getPrevious()) {
+                if (null !== $e->getPrevious()) {
                     throw $e;
                 }
             }

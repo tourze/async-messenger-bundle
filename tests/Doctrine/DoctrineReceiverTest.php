@@ -13,8 +13,8 @@ use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
 use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
 use Tourze\AsyncMessengerBundle\Doctrine\Connection;
-use Tourze\AsyncMessengerBundle\Doctrine\DoctrineReceivedStamp;
 use Tourze\AsyncMessengerBundle\Doctrine\DoctrineReceiver;
+use Tourze\AsyncMessengerBundle\Stamp\DoctrineReceivedStamp;
 
 class DoctrineReceiverTest extends TestCase
 {

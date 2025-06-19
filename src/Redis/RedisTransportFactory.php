@@ -36,7 +36,7 @@ class RedisTransportFactory implements TransportFactoryInterface
     {
         unset($options['transport_name']);
 
-        return new RedisTransport(Connection::fromDsn($dsn, $options, $this->redis), $serializer);
+        return new RedisTransport(new Connection($this->redis, $options), $serializer);
     }
 
     public function supports(#[\SensitiveParameter] string $dsn, array $options): bool

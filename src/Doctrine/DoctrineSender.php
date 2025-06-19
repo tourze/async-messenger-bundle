@@ -28,7 +28,7 @@ class DoctrineSender implements SenderInterface
     private SerializerInterface $serializer;
 
     public function __construct(
-        private Connection $connection,
+        private readonly Connection $connection,
         ?SerializerInterface $serializer = null,
     ) {
         $this->serializer = $serializer ?? new PhpSerializer();

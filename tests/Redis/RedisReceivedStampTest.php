@@ -4,7 +4,7 @@ namespace Tourze\AsyncMessengerBundle\Tests\Redis;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Stamp\NonSendableStampInterface;
-use Tourze\AsyncMessengerBundle\Redis\RedisReceivedStamp;
+use Tourze\AsyncMessengerBundle\Stamp\RedisReceivedStamp;
 
 class RedisReceivedStampTest extends TestCase
 {

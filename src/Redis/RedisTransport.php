@@ -29,7 +29,7 @@ class RedisTransport implements TransportInterface, SetupableTransportInterface,
     private RedisSender $sender;
 
     public function __construct(
-        private Connection $connection,
+        private readonly Connection $connection,
         ?SerializerInterface $serializer = null,
     ) {
         $this->serializer = $serializer ?? new PhpSerializer();

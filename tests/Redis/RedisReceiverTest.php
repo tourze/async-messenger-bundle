@@ -10,8 +10,8 @@ use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
 use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
 use Tourze\AsyncMessengerBundle\Redis\Connection;
-use Tourze\AsyncMessengerBundle\Redis\RedisReceivedStamp;
 use Tourze\AsyncMessengerBundle\Redis\RedisReceiver;
+use Tourze\AsyncMessengerBundle\Stamp\RedisReceivedStamp;
 
 class RedisReceiverTest extends TestCase
 {

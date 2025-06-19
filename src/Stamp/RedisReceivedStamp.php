@@ -9,17 +9,17 @@
  * file that was distributed with this source code.
  */
 
-namespace Tourze\AsyncMessengerBundle\Doctrine;
+namespace Tourze\AsyncMessengerBundle\Stamp;
 
 use Symfony\Component\Messenger\Stamp\NonSendableStampInterface;
 
 /**
- * @author Vincent Touzet <vincent.touzet@gmail.com>
+ * @author Alexander Schranz <alexander@sulu.io>
  */
-class DoctrineReceivedStamp implements NonSendableStampInterface
+class RedisReceivedStamp implements NonSendableStampInterface
 {
     public function __construct(
-        private string $id,
+        private readonly string $id,
     ) {
     }
 

@@ -22,6 +22,7 @@ use Symfony\Component\Messenger\Transport\Receiver\ListableReceiverInterface;
 use Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface;
 use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
+use Tourze\AsyncMessengerBundle\Stamp\DoctrineReceivedStamp;
 
 /**
  * @author Vincent Touzet <vincent.touzet@gmail.com>
