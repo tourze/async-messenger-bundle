@@ -98,7 +98,7 @@ class ConnectionIntegrationTest extends RedisIntegrationTestCase
         $this->assertNotNull($redisEnvelope2);
         $this->assertNull($redisEnvelope3); // message 3 还不可用
 
-        // Redis 使用 LIFO（通过 lPush/rPop），所以顺序应该是 1, 2
+        // Redis 现在使用 FIFO（通过 rPush/lPop），所以顺序应该是 1, 2
         $decodedMessage1 = json_decode($redisEnvelope1['data']['message'], true);
         $decodedMessage2 = json_decode($redisEnvelope2['data']['message'], true);
         
@@ -126,12 +126,12 @@ class ConnectionIntegrationTest extends RedisIntegrationTestCase
         $this->assertNotNull($envelope2);
         $this->assertNull($envelope3);
 
-        // 由于 LIFO 行为，正常消息先出来（后加入的先出来）
+        // 延迟消息应该先被处理（因为它被插入到队列前面）
         $decodedMessage1 = json_decode($envelope1['data']['message'], true);
-        $this->assertEquals('normal message', $decodedMessage1['body']);
+        $this->assertEquals('delayed message', $decodedMessage1['body']);
         
         $decodedMessage2 = json_decode($envelope2['data']['message'], true);
-        $this->assertEquals('delayed message', $decodedMessage2['body']);
+        $this->assertEquals('normal message', $decodedMessage2['body']);
         
         // 延迟队列应该为空
         $this->assertMessageInDelayedQueue($this->delayedQueueName, 0);
@@ -283,7 +283,7 @@ class ConnectionIntegrationTest extends RedisIntegrationTestCase
         $decodedMessage1_2 = json_decode($envelope1_2['data']['message'], true);
         $decodedMessage2_1 = json_decode($envelope2_1['data']['message'], true);
 
-        // Redis 使用 LIFO，所以消息反序出来
+        // Redis 现在使用 FIFO，所以消息按顺序出来
         $this->assertEquals('queue1_msg1', $decodedMessage1_1['body']);
         $this->assertEquals('queue1_msg2', $decodedMessage1_2['body']);
         $this->assertEquals('queue2_msg1', $decodedMessage2_1['body']);
@@ -354,8 +354,8 @@ class ConnectionIntegrationTest extends RedisIntegrationTestCase
             }
         }
 
-        // ltrim(0, 2) 保留列表头部的3个元素
-        // 由于 lPush 添加到头部，消息在列表中的顺序是: [5, 4, 3]
+        // ltrim(-3, -1) 保留列表尾部的3个元素
+        // 由于 rPush 添加到尾部，消息在列表中的顺序是: [3, 4, 5]
         // 所以应该包含最后添加的3个消息
         $this->assertEquals(3, count($contents));
         $this->assertContains('message 5', $contents);

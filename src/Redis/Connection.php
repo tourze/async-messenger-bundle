@@ -98,7 +98,7 @@ class Connection
                 // Parse the message and add to normal queue
                 $decodedMessage = json_decode($message, true);
                 if (is_array($decodedMessage) && isset($decodedMessage['body'])) {
-                    // Add to normal queue for immediate processing
+                    // Add to normal queue for immediate processing (at the front for priority)
                     $id = $this->generateId();
                     $redis->lPush($this->queue, json_encode([
                         'id' => $id,
@@ -117,9 +117,9 @@ class Connection
             $this->claimOldPendingMessages();
         }
 
-        // Get message from normal queue
+        // Get message from normal queue (FIFO: get from left)
         try {
-            $message = $redis->rPop($this->queue);
+            $message = $redis->lPop($this->queue);
             if (!$message) {
                 return null;
             }
@@ -196,12 +196,13 @@ class Connection
                     throw new TransportException(json_last_error_msg());
                 }
 
-                // Use lPush to add to beginning of list
-                $added = $redis->lPush($this->queue, $message);
+                // Use rPush to add to end of list (FIFO)
+                $added = $redis->rPush($this->queue, $message);
 
                 // Trim queue if max entries is set
                 if ($this->maxEntries > 0) {
-                    $redis->ltrim($this->queue, 0, $this->maxEntries - 1);
+                    // Keep the last N entries (trim from the left)
+                    $redis->ltrim($this->queue, -$this->maxEntries, -1);
                 }
             }
         } catch (\RedisException $e) {
@@ -240,7 +241,7 @@ class Connection
             $redis = $this->getRedis();
             try {
                 foreach ($abandonedMessages as $id => $message) {
-                    // Re-add abandoned message to queue
+                    // Re-add abandoned message to queue (at the front for priority)
                     $redis->lPush($this->queue, $message);
                     unset($this->processingMessages[$id]);
                 }

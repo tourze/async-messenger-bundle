@@ -96,7 +96,7 @@ abstract class RedisIntegrationTestCase extends TestCase
         $data = array_merge($defaultData, $data);
         $message = json_encode($data);
         
-        $this->redis->lPush($queueName, $message);
+        $this->redis->rPush($queueName, $message);
         
         return $data['id'];
     }
