@@ -6,9 +6,11 @@
 
 - **Redis 传输**：使用 Redis 列表和有序集合进行消息队列
 - **Doctrine 传输**：基于数据库的消息队列
+- **故障转移传输**：自动从 Redis → Doctrine → Sync 进行故障转移
 - **延迟消息**：支持消息延迟发送
 - **定时消息**：支持定时消息投递
 - **队列管理**：自动队列大小限制和消息回收
+- **高可用性**：内置的弹性机制和自动传输故障转移
 
 ## 安装
 
@@ -20,11 +22,15 @@ composer require tourze/async-messenger-bundle
 
 ### 自动传输注册
 
-该 Bundle 会自动注册两个传输：
+该 Bundle 会自动注册以下传输：
 - `async_doctrine`：基于 Doctrine 的数据库消息队列传输
 - `async_redis`：基于 Redis 的高性能消息队列传输
+- `async_fallback`：具有自动故障转移的传输（Redis → Doctrine → Sync）
+- `sync`：同步传输（始终可用作为最终回退）
 
 安装 Bundle 后，这些传输会使用合理的默认值自动配置。
+
+默认的失败传输设置为 `async_doctrine` 以确保可靠的消息恢复。
 
 ### 环境变量
 
@@ -38,6 +44,8 @@ ASYNC_MESSENGER_AUTO_CONFIGURE=true
 传输使用简单的 DSN 注册：
 - `async_doctrine`：`async-doctrine://`
 - `async_redis`：`async-redis://`
+- `async_fallback`：`fallback://`（先尝试 Redis，然后 Doctrine，最后 Sync）
+- `sync`：`sync://`
 
 所有详细配置（表名、队列名、超时等）都由传输工厂内部处理，并提供合理的默认值。
 
@@ -50,8 +58,13 @@ ASYNC_MESSENGER_AUTO_CONFIGURE=true
 framework:
     messenger:
         routing:
+            # 使用特定传输
             'App\Message\EmailMessage': async_doctrine
             'App\Message\NotificationMessage': async_redis
+            
+            # 为关键消息使用故障转移传输
+            'App\Message\PaymentMessage': async_fallback
+            'App\Message\OrderMessage': async_fallback
 ```
 
 ### 自定义传输配置
@@ -69,6 +82,12 @@ framework:
                     table_name: 'my_custom_messages'
                     queue_name: 'priority'
                     redeliver_timeout: 7200
+                    
+            # 自定义故障转移传输的顺序
+            my_fallback:
+                dsn: 'fallback://'
+                options:
+                    transports: ['async_doctrine', 'async_redis', 'sync']
 ```
 
 ## 使用方法

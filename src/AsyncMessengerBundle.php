@@ -6,6 +6,7 @@ use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Snc\RedisBundle\SncRedisBundle;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
+use Tourze\AsyncMessengerBundle\DependencyInjection\Compiler\EnsureSyncTransportPass;
 use Tourze\AsyncMessengerBundle\DependencyInjection\RemoveUnusedServicePass;
 use Tourze\BundleDependency\BundleDependencyInterface;
 use Tourze\DoctrineDedicatedConnectionBundle\DoctrineDedicatedConnectionBundle;
@@ -16,6 +17,7 @@ class AsyncMessengerBundle extends Bundle implements BundleDependencyInterface
     public function build(ContainerBuilder $container): void
     {
         parent::build($container);
+        $container->addCompilerPass(new EnsureSyncTransportPass());
         $container->addCompilerPass(new RemoveUnusedServicePass());
     }
 

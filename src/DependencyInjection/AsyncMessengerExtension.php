@@ -49,6 +49,13 @@ class AsyncMessengerExtension extends Extension implements PrependExtensionInter
         $transports = [
             'async_doctrine' => 'async-doctrine://',
             'async_redis' => 'async-redis://',
+            'sync' => 'sync://',
+            'async_fallback' => [
+                'dsn' => 'fallback://',
+                'options' => [
+                    'transports' => ['async_redis', 'async_doctrine', 'sync'],
+                ],
+            ],
         ];
 
         // 合并 transport 配置，不覆盖已存在的
@@ -56,10 +63,15 @@ class AsyncMessengerExtension extends Extension implements PrependExtensionInter
             $messengerConfig['transports'] = [];
         }
         
-        foreach ($transports as $name => $dsn) {
+        foreach ($transports as $name => $config) {
             if (!isset($messengerConfig['transports'][$name])) {
-                $messengerConfig['transports'][$name] = $dsn;
+                $messengerConfig['transports'][$name] = $config;
             }
+        }
+        
+        // 设置默认的 failure_transport
+        if (!isset($messengerConfig['failure_transport'])) {
+            $messengerConfig['failure_transport'] = 'async_doctrine';
         }
 
         // 将配置添加到 framework
