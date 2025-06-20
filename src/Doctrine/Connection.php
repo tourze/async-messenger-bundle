@@ -47,7 +47,6 @@ class Connection implements ResetInterface
         'queue_name' => 'default',
         'redeliver_timeout' => 3600,
         'auto_setup' => true,
-        'use_notify' => true,
     ];
 
     protected ?float $queueEmptiedAt = null;
@@ -77,7 +76,7 @@ class Connection implements ResetInterface
     public static function buildConfiguration(#[\SensitiveParameter] string $dsn, array $options = []): array
     {
         if (false === $params = parse_url($dsn)) {
-            throw new InvalidArgumentException('The given Doctrine Messenger DSN is invalid.');
+            return [];
         }
 
         $query = [];
@@ -85,7 +84,7 @@ class Connection implements ResetInterface
             parse_str($params['query'], $query);
         }
 
-        $configuration = ['connection' => $params['host']];
+        $configuration = [];
         $configuration += $query + $options + static::DEFAULT_OPTIONS;
 
         $configuration['auto_setup'] = filter_var($configuration['auto_setup'], \FILTER_VALIDATE_BOOL);
