@@ -84,4 +84,9 @@ class RedisTransport implements TransportInterface, SetupableTransportInterface,
     {
         $this->connection->close();
     }
+
+    public function cleanup(): void
+    {
+        $this->connection->cleanup();
+    }
 }

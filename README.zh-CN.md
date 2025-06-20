@@ -18,13 +18,58 @@ composer require tourze/async-messenger-bundle
 
 ## 配置
 
-该包会自动配置 Redis 和 Doctrine 传输，无需 YAML 配置。
+### 自动传输注册
 
-### 默认队列名称
+该 Bundle 会自动注册两个传输：
+- `async_doctrine`：基于 Doctrine 的数据库消息队列传输
+- `async_redis`：基于 Redis 的高性能消息队列传输
 
-- Redis 普通队列：`async_messages`
-- Redis 延迟队列：`async_messages_delayed`
-- Doctrine 数据表：`messenger_messages`
+安装 Bundle 后，这些传输会使用合理的默认值自动配置。
+
+### 环境变量
+
+Bundle 会以最简配置自动注册两个传输：
+
+```bash
+# 启用/禁用自动传输注册（默认：true）
+ASYNC_MESSENGER_AUTO_CONFIGURE=true
+```
+
+传输使用简单的 DSN 注册：
+- `async_doctrine`：`async-doctrine://`
+- `async_redis`：`async-redis://`
+
+所有详细配置（表名、队列名、超时等）都由传输工厂内部处理，并提供合理的默认值。
+
+### 使用传输
+
+安装后，传输会自动在您的 messenger 配置中可用：
+
+```yaml
+# config/packages/messenger.yaml
+framework:
+    messenger:
+        routing:
+            'App\Message\EmailMessage': async_doctrine
+            'App\Message\NotificationMessage': async_redis
+```
+
+### 自定义传输配置
+
+如果需要自定义配置，可以在 `messenger.yaml` 中覆盖传输：
+
+```yaml
+framework:
+    messenger:
+        transports:
+            # 覆盖默认的 async_doctrine 传输
+            async_doctrine:
+                dsn: 'async-doctrine://'
+                options:
+                    table_name: 'my_custom_messages'
+                    queue_name: 'priority'
+                    redeliver_timeout: 7200
+```
 
 ## 使用方法
 

@@ -18,13 +18,58 @@ composer require tourze/async-messenger-bundle
 
 ## Configuration
 
-The bundle automatically configures Redis and Doctrine transports without requiring YAML configuration.
+### Automatic Transport Registration
 
-### Default Queue Names
+The bundle automatically registers two transports:
+- `async_doctrine`: Doctrine-based transport for database message queuing
+- `async_redis`: Redis-based transport for high-performance message queuing
 
-- Redis normal queue: `async_messages`
-- Redis delayed queue: `async_messages_delayed`
-- Doctrine table: `messenger_messages`
+These transports are automatically configured with sensible defaults when the bundle is installed.
+
+### Environment Variables
+
+The bundle automatically registers two transports with minimal configuration:
+
+```bash
+# Enable/disable automatic transport registration (default: true)
+ASYNC_MESSENGER_AUTO_CONFIGURE=true
+```
+
+The transports are registered with these simple DSNs:
+- `async_doctrine`: `async-doctrine://`
+- `async_redis`: `async-redis://`
+
+All detailed configuration (table names, queue names, timeouts, etc.) is handled internally by the transport factories with sensible defaults.
+
+### Using the Transports
+
+Once installed, the transports are automatically available in your messenger configuration:
+
+```yaml
+# config/packages/messenger.yaml
+framework:
+    messenger:
+        routing:
+            'App\Message\EmailMessage': async_doctrine
+            'App\Message\NotificationMessage': async_redis
+```
+
+### Customizing Transport Configuration
+
+If you need custom configuration, you can override the transport in your `messenger.yaml`:
+
+```yaml
+framework:
+    messenger:
+        transports:
+            # Override the default async_doctrine transport
+            async_doctrine:
+                dsn: 'async-doctrine://'
+                options:
+                    table_name: 'my_custom_messages'
+                    queue_name: 'priority'
+                    redeliver_timeout: 7200
+```
 
 ## Usage
 

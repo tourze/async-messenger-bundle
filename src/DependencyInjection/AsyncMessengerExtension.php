@@ -26,40 +26,29 @@ class AsyncMessengerExtension extends Extension implements PrependExtensionInter
             return;
         }
 
+        // 检查是否应该自动配置（通过环境变量）
+        $autoConfigureEnv = $_ENV['ASYNC_MESSENGER_AUTO_CONFIGURE'] ?? $_SERVER['ASYNC_MESSENGER_AUTO_CONFIGURE'] ?? 'true';
+        if ($autoConfigureEnv === 'false' || $autoConfigureEnv === '0') {
+            return;
+        }
+
         // 获取现有的 messenger 配置
-        $configs = $container->getExtensionConfig('framework');
+        $frameworkConfigs = $container->getExtensionConfig('framework');
         $messengerConfig = [];
         
         // 查找现有的 messenger 配置
-        foreach ($configs as $config) {
-            if (isset($config['messenger'])) {
-                $messengerConfig = $config['messenger'];
+        foreach ($frameworkConfigs as $frameworkConfig) {
+            if (isset($frameworkConfig['messenger'])) {
+                $messengerConfig = $frameworkConfig['messenger'];
                 break;
             }
         }
 
-        // 准备我们的 transport 配置
+        // 准备我们的 transport 配置 - 非常简单，只需要 DSN
+        // TransportFactory 会处理所有的配置细节
         $transports = [
-            'async_doctrine' => [
-                'dsn' => '%env(ASYNC_DOCTRINE_DSN)%',
-                'options' => [
-                    'table_name' => 'messenger_messages',
-                    'queue_name' => 'default',
-                    'redeliver_timeout' => 3600,
-                    'auto_setup' => true,
-                ],
-            ],
-            'async_redis' => [
-                'dsn' => '%env(ASYNC_REDIS_DSN)%',
-                'options' => [
-                    'stream' => 'messages',
-                    'group' => 'symfony',
-                    'consumer' => 'consumer',
-                    'auto_setup' => true,
-                    'stream_max_entries' => 0, // 0 = unlimited
-                    'dbindex' => 0,
-                ],
-            ],
+            'async_doctrine' => 'async-doctrine://',
+            'async_redis' => 'async-redis://',
         ];
 
         // 合并 transport 配置，不覆盖已存在的
@@ -67,14 +56,11 @@ class AsyncMessengerExtension extends Extension implements PrependExtensionInter
             $messengerConfig['transports'] = [];
         }
         
-        foreach ($transports as $name => $config) {
+        foreach ($transports as $name => $dsn) {
             if (!isset($messengerConfig['transports'][$name])) {
-                $messengerConfig['transports'][$name] = $config;
+                $messengerConfig['transports'][$name] = $dsn;
             }
         }
-
-        // 设置默认的环境变量（如果未设置）
-        $this->setDefaultEnvVars($container);
 
         // 将配置添加到 framework
         $container->prependExtensionConfig('framework', [
@@ -82,18 +68,4 @@ class AsyncMessengerExtension extends Extension implements PrependExtensionInter
         ]);
     }
 
-    private function setDefaultEnvVars(ContainerBuilder $container): void
-    {
-        // 设置默认的 DSN 环境变量
-        $defaultEnvVars = [
-            'ASYNC_DOCTRINE_DSN' => 'async-doctrine://default',
-            'ASYNC_REDIS_DSN' => 'async-redis://localhost:6379',
-        ];
-
-        foreach ($defaultEnvVars as $key => $value) {
-            if (!$container->hasParameter("env($key)")) {
-                $container->setParameter("env($key)", $value);
-            }
-        }
-    }
 }
