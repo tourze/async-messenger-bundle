@@ -8,7 +8,6 @@ use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
 use Symfony\Component\Messenger\Transport\TransportFactoryInterface;
 use Symfony\Component\Messenger\Transport\TransportInterface;
-use Symfony\Contracts\Service\ServiceProviderInterface;
 use Tourze\AsyncMessengerBundle\Failover\ConsumptionStrategy\RoundRobinStrategy;
 
 /**
@@ -17,27 +16,58 @@ use Tourze\AsyncMessengerBundle\Failover\ConsumptionStrategy\RoundRobinStrategy;
 #[AutoconfigureTag('messenger.transport_factory')]
 class FailoverTransportFactory implements TransportFactoryInterface
 {
+    /**
+     * @param iterable<mixed, TransportFactoryInterface> $factories
+     */
     public function __construct(
-        private readonly ServiceProviderInterface $transportLocator
+        private readonly iterable $factories
     ) {
     }
 
     public function createTransport(#[\SensitiveParameter] string $dsn, array $options, SerializerInterface $serializer): TransportInterface
     {
-        // Parse DSN: failover://transport1,transport2,transport3
-        $transportNames = $this->parseTransportNames($dsn);
+        // Parse DSN: failover://dsn1,dsn2,dsn3  OR  failover://transport1,transport2
+        $transportDsns = $this->parseTransportDsns($dsn);
         
-        if (count($transportNames) < 2) {
-            throw new \InvalidArgumentException('Failover transport requires at least 2 transport names');
+        if (count($transportDsns) < 2) {
+            throw new \InvalidArgumentException('Failover transport requires at least 2 transport DSNs');
         }
         
-        // Load transports
+        // Create transports from DSNs
         $transports = [];
-        foreach ($transportNames as $transportName) {
-            if (!$this->transportLocator->has($transportName)) {
-                throw new \InvalidArgumentException(sprintf('Transport "%s" not found', $transportName));
+
+        foreach ($transportDsns as $index => $transportDsn) {
+            $transportName = 'transport_' . $index;
+
+            // If DSN doesn't contain "://", assume it's a transport name and construct DSN
+            if (!str_contains($transportDsn, '://')) {
+                // Map common transport names to their DSNs
+                $transportDsn = match($transportDsn) {
+                    'async_doctrine' => 'async-doctrine://',
+                    'async_redis' => 'async-redis://',
+                    default => throw new \InvalidArgumentException(sprintf('Unknown transport name: %s', $transportDsn))
+                };
             }
-            $transports[$transportName] = $this->transportLocator->get($transportName);
+
+            // Find the appropriate factory for this DSN
+            $transport = null;
+            foreach ($this->factories as $factory) {
+                // Skip self to avoid infinite recursion
+                if ($factory === $this) {
+                    continue;
+                }
+
+                if ($factory->supports($transportDsn, [])) {
+                    $transport = $factory->createTransport($transportDsn, [], $serializer);
+                    break;
+                }
+            }
+
+            if ($transport === null) {
+                throw new \InvalidArgumentException(sprintf('No factory found for DSN: %s', $transportDsn));
+            }
+
+            $transports[$transportName] = $transport;
         }
         
         // Create circuit breaker
@@ -62,13 +92,13 @@ class FailoverTransportFactory implements TransportFactoryInterface
         );
     }
 
-    private function parseTransportNames(string $dsn): array
+    private function parseTransportDsns(string $dsn): array
     {
         // Remove the scheme
         $transportList = substr($dsn, strlen('failover://'));
 
         if (empty($transportList)) {
-            throw new \InvalidArgumentException('No transport names provided in DSN');
+            throw new \InvalidArgumentException('No transport DSNs provided in DSN');
         }
 
         return array_map('trim', explode(',', $transportList));

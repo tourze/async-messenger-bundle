@@ -37,6 +37,9 @@ The `async` transport uses our advanced failover mechanism with:
 - Automatic failover from Doctrine to Redis and vice versa
 - Self-healing with automatic recovery attempts
 
+**Important**: The failover transport creates its own instances of the underlying transports (async_doctrine and async_redis).
+This means it doesn't share connections or state with separately configured async_doctrine or async_redis transports.
+
 ### Environment Variables
 
 The bundle automatically registers two transports with minimal configuration:
