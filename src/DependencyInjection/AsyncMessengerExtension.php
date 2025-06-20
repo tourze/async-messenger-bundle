@@ -70,15 +70,12 @@ class AsyncMessengerExtension extends Extension implements PrependExtensionInter
         }
         
         foreach ($transports as $name => $config) {
-            if (!isset($messengerConfig['transports'][$name])) {
-                $messengerConfig['transports'][$name] = $config;
-            }
+            // 任何情况下，都是直接覆盖
+            $messengerConfig['transports'][$name] = $config;
         }
 
         // 设置默认的 failure_transport
-        if (!isset($messengerConfig['failure_transport'])) {
-            $messengerConfig['failure_transport'] = 'async_doctrine';
-        }
+        $messengerConfig['failure_transport'] = 'async_doctrine';
 
         // 将配置添加到 framework
         $container->prependExtensionConfig('framework', [

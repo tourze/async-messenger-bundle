@@ -49,6 +49,11 @@ class AsyncMessengerExtensionAutoConfigureTest extends TestCase
         $this->assertArrayHasKey('transports', $messengerConfig);
         $this->assertArrayHasKey('async_doctrine', $messengerConfig['transports']);
         $this->assertArrayHasKey('async_redis', $messengerConfig['transports']);
+        $this->assertArrayHasKey('async', $messengerConfig['transports']);
+        $this->assertArrayHasKey('sync', $messengerConfig['transports']);
+        
+        // Check failure transport
+        $this->assertEquals('async_doctrine', $messengerConfig['failure_transport']);
 
         // Cleanup
         unset($_ENV['ASYNC_MESSENGER_AUTO_CONFIGURE']);
@@ -102,7 +107,7 @@ class AsyncMessengerExtensionAutoConfigureTest extends TestCase
         return null;
     }
 
-    public function test_prepend_withExistingTransports_doesNotOverride(): void
+    public function test_prepend_withExistingTransports_overridesConfiguration(): void
     {
         // Arrange
         $_ENV['ASYNC_MESSENGER_AUTO_CONFIGURE'] = 'true';
@@ -136,11 +141,14 @@ class AsyncMessengerExtensionAutoConfigureTest extends TestCase
         
         $this->assertNotNull($messengerConfig);
         
-        // 验证已存在的配置没有被覆盖
-        $this->assertEquals('existing_doctrine_dsn', $messengerConfig['transports']['async_doctrine']['dsn']);
-        $this->assertEquals('existing_table', $messengerConfig['transports']['async_doctrine']['options']['table_name']);
-        $this->assertEquals('existing_redis_dsn', $messengerConfig['transports']['async_redis']['dsn']);
-        $this->assertEquals('existing_stream', $messengerConfig['transports']['async_redis']['options']['stream']);
+        // 验证配置被覆盖为新的配置
+        $this->assertEquals('async-doctrine://', $messengerConfig['transports']['async_doctrine']);
+        $this->assertEquals('async-redis://', $messengerConfig['transports']['async_redis']);
+        
+        // 验证 async transport 被添加
+        $this->assertArrayHasKey('async', $messengerConfig['transports']);
+        $this->assertIsArray($messengerConfig['transports']['async']);
+        $this->assertEquals('failover://async_doctrine,async_redis', $messengerConfig['transports']['async']['dsn']);
         
         // 验证其他 transport 仍然存在
         $this->assertArrayHasKey('custom_transport', $messengerConfig['transports']);
@@ -160,7 +168,18 @@ class AsyncMessengerExtensionAutoConfigureTest extends TestCase
         
         // Assert
         $frameworkConfigs = $this->container->getExtensionConfig('framework');
-        $this->assertEmpty($frameworkConfigs);
+        
+        // 查找 messenger 配置
+        $messengerConfig = null;
+        foreach ($frameworkConfigs as $config) {
+            if (isset($config['messenger'])) {
+                $messengerConfig = $config['messenger'];
+                break;
+            }
+        }
+        
+        // 当 auto configure 被禁用时，不应该有 messenger 配置
+        $this->assertNull($messengerConfig);
         
         // Cleanup
         unset($_SERVER['ASYNC_MESSENGER_AUTO_CONFIGURE']);
