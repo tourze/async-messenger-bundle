@@ -12,10 +12,10 @@
 namespace Tourze\AsyncMessengerBundle\Redis;
 
 use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
 use Symfony\Component\Messenger\Transport\TransportFactoryInterface;
 use Symfony\Component\Messenger\Transport\TransportInterface;
+use Tourze\RedisDedicatedConnectionBundle\Attribute\WithDedicatedConnection;
 
 /**
  * @author Alexander Schranz <alexander@suluio>
@@ -24,10 +24,11 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
  * @implements TransportFactoryInterface<RedisTransport>
  */
 #[AutoconfigureTag('messenger.transport_factory')]
+#[WithDedicatedConnection('async_messenger')]
 class RedisTransportFactory implements TransportFactoryInterface
 {
     public function __construct(
-        #[Autowire(service: 'snc_redis.default')] private readonly \Redis $redis,
+        private readonly \Redis $redis,
     )
     {
     }
