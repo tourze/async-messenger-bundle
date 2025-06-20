@@ -106,8 +106,8 @@ class RedisTransportIntegrationTest extends RedisIntegrationTestCase
     {
         // Arrange - 设置短的重投递超时
         $options = array_merge($this->getConnectionOptions(), [
-            'redeliver_timeout' => 2,
-            'claim_interval' => 500,
+            'redeliver_timeout' => 0.5,
+            'claim_interval' => 100,
         ]);
         $connection = new Connection($this->redis, $options);
         $transport = new RedisTransport($connection, $this->serializer);
@@ -123,11 +123,12 @@ class RedisTransportIntegrationTest extends RedisIntegrationTestCase
         $receivedEnvelope = $receivedEnvelopes[0];
 
         // 模拟长时间处理，期间调用 keepalive
-        sleep(1);
+        usleep(300000); // 0.3秒
         $transport->keepalive($receivedEnvelope);
-        sleep(2); // 总共 3 秒，超过了 redeliver_timeout
+        usleep(400000); // 再0.4秒，总共 0.7 秒，超过了 redeliver_timeout
 
-        // Assert - 消息不应该被重新投递
+        // Assert - 在 list-based 实现中，get() 会触发重投递检查
+        // keepalive 更新了 timestamp，所以消息不会被重投递
         $secondGet = $transport->get();
         $this->assertEmpty($secondGet);
 

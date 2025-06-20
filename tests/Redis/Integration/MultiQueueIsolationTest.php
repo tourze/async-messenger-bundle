@@ -248,15 +248,15 @@ class MultiQueueIsolationTest extends RedisIntegrationTestCase
         $options1 = array_merge($this->getConnectionOptions(), [
             'queue' => 'queue_1',
             'delayed_queue' => 'queue_1_delayed',
-            'redeliver_timeout' => 1,
-            'claim_interval' => 200,
+            'redeliver_timeout' => 0.5,
+            'claim_interval' => 100,
         ]);
         
         $options2 = array_merge($this->getConnectionOptions(), [
             'queue' => 'queue_2',
             'delayed_queue' => 'queue_2_delayed',
-            'redeliver_timeout' => 2,
-            'claim_interval' => 200,
+            'redeliver_timeout' => 1.5,
+            'claim_interval' => 100,
         ]);
         
         $connection1 = new Connection($this->redis, $options1);
@@ -285,28 +285,31 @@ class MultiQueueIsolationTest extends RedisIntegrationTestCase
         $this->assertCount(1, $messages1);
         $this->assertCount(1, $messages2);
         
-        // 等待 queue_1 的重投递（1秒）
-        sleep(2);
+        // 在 list-based 实现中，消息被 rPop 后就不在队列中了
+        // 重投递需要显式地将消息重新加入队列（通过 reject 或超时机制）
+        // 由于我们没有 ack 这些消息，它们在 processingMessages 中被跟踪
         
-        // queue_1 的消息应该被重投递，queue_2 的不应该
-        $newConsumer1 = new RedisTransport($connection1, $this->serializer);
-        $newConsumer2 = new RedisTransport($connection2, $this->serializer);
+        // 等待超过 queue_1 的 redeliver_timeout
+        usleep(700000); // 0.7秒
         
-        $redelivered1 = $newConsumer1->get();
-        $redelivered2 = $newConsumer2->get();
+        // 触发重投递检查 - 需要调用 get() 来触发 claimOldPendingMessages
+        $redelivered1 = $consumer1->get();
+        $redelivered2 = $consumer2->get();
         
+        // queue_1 的消息应该被重投递（因为超时了）
+        // queue_2 的消息不应该被重投递（还没超时）
         $this->assertCount(1, $redelivered1, "Queue 1 message should be redelivered");
         $this->assertEmpty($redelivered2, "Queue 2 message should not be redelivered yet");
         
         // 清理
-        $newConsumer1->ack($redelivered1[0]);
+        $consumer1->ack($redelivered1[0]);
         
         // 再等待 queue_2 的重投递
-        sleep(1);
+        usleep(1000000); // 1秒，总计1.7秒，超过queue_2的1.5秒超时
         
-        $redelivered2Again = $newConsumer2->get();
+        $redelivered2Again = $consumer2->get();
         $this->assertCount(1, $redelivered2Again, "Queue 2 message should now be redelivered");
-        $newConsumer2->ack($redelivered2Again[0]);
+        $consumer2->ack($redelivered2Again[0]);
     }
     
     public function test_messageCountsAreIsolated(): void

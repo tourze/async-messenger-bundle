@@ -82,7 +82,7 @@ abstract class RedisIntegrationTestCase extends TestCase
         return $this->redis->zRange($queueName, 0, -1, true);
     }
     
-    protected function insertTestMessage(array $data, string $queueName = null): string
+    protected function insertTestMessage(array $data, ?string $queueName = null): string
     {
         $queueName = $queueName ?? $this->queueName;
         
@@ -106,7 +106,7 @@ abstract class RedisIntegrationTestCase extends TestCase
         return base64_encode(random_bytes(12));
     }
     
-    protected function insertDelayedMessage(array $data, float $score, string $queueName = null): string
+    protected function insertDelayedMessage(array $data, float $score, ?string $queueName = null): string
     {
         $queueName = $queueName ?? $this->delayedQueueName;
 
@@ -125,13 +125,13 @@ abstract class RedisIntegrationTestCase extends TestCase
         return $data['id'];
     }
     
-    protected function getMessageCount(string $queueName = null): int
+    protected function getMessageCount(?string $queueName = null): int
     {
         $queueName = $queueName ?? $this->queueName;
         return (int) $this->redis->lLen($queueName);
     }
     
-    protected function getDelayedMessageCount(string $queueName = null): int
+    protected function getDelayedMessageCount(?string $queueName = null): int
     {
         $queueName = $queueName ?? $this->delayedQueueName;
         return (int) $this->redis->zCard($queueName);

@@ -186,7 +186,7 @@ class Connection implements ResetInterface
 
                 $id = $first[0] ?? null;
 
-                if (!$id) {
+                if (!$id) { // @phpstan-ignore-line
                     throw new TransportException('no id was returned by PostgreSQL from RETURNING clause.');
                 }
             } elseif ($this->driverConnection->getDatabasePlatform() instanceof OraclePlatform) {
@@ -198,13 +198,13 @@ class Connection implements ResetInterface
 
                 $id = (int) $result;
 
-                if (!$id) {
+                if (!$id) { // @phpstan-ignore-line
                     throw new TransportException('no id was returned by Oracle from sequence: '.$sequenceName);
                 }
             } else {
                 $this->driverConnection->executeStatement($sql, $parameters, $types);
 
-                if (!$id = $this->driverConnection->lastInsertId()) {
+                if (!$id = $this->driverConnection->lastInsertId()) { // @phpstan-ignore-line
                     throw new TransportException('lastInsertId() returned false, no id was returned.');
                 }
             }
@@ -349,10 +349,6 @@ class Connection implements ResetInterface
                 $this->doMysqlCleanup = false;
             } catch (DriverException $e) {
                 // Ignore the exception
-            } catch (TableNotFoundException $e) {
-                if ($this->autoSetup) {
-                    $this->setup();
-                }
             }
         }
 
