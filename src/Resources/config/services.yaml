@@ -9,8 +9,3 @@ services:
 
   Tourze\AsyncMessengerBundle\Doctrine\DoctrineTransportFactory: ~
   Tourze\AsyncMessengerBundle\Redis\RedisTransportFactory: ~
-  
-  Tourze\AsyncMessengerBundle\Transport\FallbackTransportFactory:
-    arguments:
-      $container: '@service_container'
-      $logger: '@?logger'

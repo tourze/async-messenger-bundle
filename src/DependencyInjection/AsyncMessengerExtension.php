@@ -49,13 +49,6 @@ class AsyncMessengerExtension extends Extension implements PrependExtensionInter
         $transports = [
             'async_doctrine' => 'async-doctrine://',
             'async_redis' => 'async-redis://',
-            'sync' => 'sync://',
-            'async_fallback' => [
-                'dsn' => 'fallback://',
-                'options' => [
-                    'transports' => ['async_redis', 'async_doctrine', 'sync'],
-                ],
-            ],
         ];
 
         // 合并 transport 配置，不覆盖已存在的

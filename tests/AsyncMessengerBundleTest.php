@@ -5,7 +5,6 @@ namespace Tourze\AsyncMessengerBundle\Tests;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Tourze\AsyncMessengerBundle\AsyncMessengerBundle;
-use Tourze\AsyncMessengerBundle\DependencyInjection\Compiler\EnsureSyncTransportPass;
 use Tourze\AsyncMessengerBundle\DependencyInjection\RemoveUnusedServicePass;
 
 class AsyncMessengerBundleTest extends TestCase
@@ -19,23 +18,15 @@ class AsyncMessengerBundleTest extends TestCase
         $this->assertEquals($expectedPath, $bundle->getPath());
     }
 
-    public function test_build_addsCompilerPasses(): void
+    public function test_build_addsCompilerPass(): void
     {
-        $passes = [];
-        
         $container = $this->createMock(ContainerBuilder::class);
-        $container->expects($this->exactly(2))
+        $container->expects($this->once())
             ->method('addCompilerPass')
-            ->willReturnCallback(function ($pass) use (&$passes, $container) {
-                $passes[] = $pass;
-                return $container;
-            });
+            ->with($this->isInstanceOf(RemoveUnusedServicePass::class))
+            ->willReturn($container);
 
         $bundle = new AsyncMessengerBundle();
         $bundle->build($container);
-        
-        $this->assertCount(2, $passes);
-        $this->assertInstanceOf(EnsureSyncTransportPass::class, $passes[0]);
-        $this->assertInstanceOf(RemoveUnusedServicePass::class, $passes[1]);
     }
 }
