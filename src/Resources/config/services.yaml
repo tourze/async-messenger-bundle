@@ -9,3 +9,7 @@ services:
 
   Tourze\AsyncMessengerBundle\Doctrine\DoctrineTransportFactory: ~
   Tourze\AsyncMessengerBundle\Redis\RedisTransportFactory: ~
+  
+  Tourze\AsyncMessengerBundle\Failover\FailoverTransportFactory:
+    arguments:
+      $transportLocator: '@messenger.transport_locator'

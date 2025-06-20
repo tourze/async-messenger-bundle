@@ -19,7 +19,8 @@
     "symfony/service-contracts": "^3.5",
     "symfony/yaml": "^6.4 || ^7.1",
     "tourze/async-contracts": "0.0.*",
-    "tourze/bundle-dependency": "0.0.*"
+    "tourze/bundle-dependency": "0.0.*",
+    "tourze/enum-extra": "0.0.*"
   },
   "require-dev": {
     "phpstan/phpstan": "^2.1",

@@ -9,6 +9,7 @@ A Symfony bundle providing Redis and Doctrine transports for Symfony Messenger w
 - **Delayed Messages**: Support for message delays
 - **Scheduled Messages**: Support for scheduled message delivery
 - **Queue Management**: Automatic queue size limiting and message reclaim
+- **Failover Transport**: Automatic failover between multiple transports with circuit breaker pattern
 
 ## Installation
 
@@ -23,10 +24,18 @@ composer require tourze/async-messenger-bundle
 The bundle automatically registers the following transports:
 - `async_doctrine`: Doctrine-based transport for database message queuing
 - `async_redis`: Redis-based transport for high-performance message queuing
+- `async`: Failover transport that automatically switches between `async_doctrine` and `async_redis`
+- `sync`: Synchronous transport for immediate processing
 
 These transports are automatically configured with sensible defaults when the bundle is installed.
 
 The default failure transport is set to `async_doctrine` for reliable message recovery.
+
+The `async` transport uses our advanced failover mechanism with:
+- Circuit breaker pattern to prevent cascading failures
+- Adaptive priority consumption strategy
+- Automatic failover from Doctrine to Redis and vice versa
+- Self-healing with automatic recovery attempts
 
 ### Environment Variables
 
@@ -40,6 +49,8 @@ ASYNC_MESSENGER_AUTO_CONFIGURE=true
 The transports are registered with these simple DSNs:
 - `async_doctrine`: `async-doctrine://`
 - `async_redis`: `async-redis://`
+- `async`: `failover://async_doctrine,async_redis`
+- `sync`: `sync://`
 
 All detailed configuration (table names, queue names, timeouts, etc.) is handled internally by the transport factories with sensible defaults.
 
@@ -52,6 +63,10 @@ Once installed, the transports are automatically available in your messenger con
 framework:
     messenger:
         routing:
+            # Use the failover transport for critical messages
+            'App\Message\CriticalMessage': async
+            
+            # Or use specific transports directly
             'App\Message\EmailMessage': async_doctrine
             'App\Message\NotificationMessage': async_redis
 ```
@@ -74,6 +89,8 @@ framework:
 ```
 
 ## Usage
+
+### Basic Usage
 
 ```php
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -98,6 +115,42 @@ class MyController
     }
 }
 ```
+
+### Failover Transport
+
+The failover transport provides automatic failover between multiple transports:
+
+```yaml
+# config/packages/messenger.yaml
+framework:
+    messenger:
+        transports:
+            # Define a failover transport that uses async_doctrine as primary
+            # and async_redis as secondary
+            async_failover:
+                dsn: 'failover://async_doctrine,async_redis'
+                options:
+                    circuit_breaker:
+                        failure_threshold: 5
+                        success_threshold: 2
+                        timeout: 30
+                    consumption_strategy: 'adaptive_priority'
+        
+        routing:
+            'App\Message\CriticalMessage': async_failover
+```
+
+#### Failover Features
+
+1. **Circuit Breaker Pattern**: Prevents cascading failures by temporarily disabling failed transports
+2. **Multiple Consumption Strategies**:
+   - `round_robin`: Simple round-robin between healthy transports
+   - `weighted_round_robin`: Weights based on success rates
+   - `adaptive_priority`: Dynamic priority based on performance
+   - `latency_aware`: Selects transport with lowest latency
+
+3. **Distributed Environment Support**: Each process maintains its own circuit breaker state
+4. **Automatic Recovery**: Failed transports are automatically retried after timeout
 
 ## Requirements
 
