@@ -81,11 +81,6 @@ class FailoverTransportIntegrationTest extends TestCase
         $this->failoverTransport->send(new Envelope($message));
     }
     
-    public function testConsumeFromBothTransports(): void
-    {
-        // This test verifies that the failover transport can consume from available transports
-        $this->markTestSkipped('get() method has complex blocking behavior that needs proper mocking');
-    }
     
     protected function setUp(): void
     {

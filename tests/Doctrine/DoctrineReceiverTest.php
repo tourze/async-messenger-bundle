@@ -49,7 +49,6 @@ class DoctrineReceiverTest extends TestCase
 
         $result = $this->receiver->get();
 
-        $this->assertIsIterable($result);
         $this->assertEquals([], iterator_to_array($result));
     }
 

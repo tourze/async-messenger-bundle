@@ -105,6 +105,7 @@ class DoctrineReceiver implements ListableReceiverInterface, MessageCountAwareIn
         try {
             $callable();
         } catch (RetryableException $exception) {
+            /** @phpstan-ignore-next-line smallerOrEqual.alwaysTrue */
             if (++$retries <= self::MAX_RETRIES) {
                 $delay *= $multiplier;
 

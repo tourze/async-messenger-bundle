@@ -46,7 +46,6 @@ class DoctrineReceivedStampTest extends TestCase
         $stamp = new DoctrineReceivedStamp($id);
         
         $this->assertEquals($id, $stamp->getId());
-        $this->assertIsString($stamp->getId());
     }
 
     public function test_constructor_acceptsUuidString(): void

@@ -84,9 +84,9 @@ class ConcurrentConsumptionTest extends RedisIntegrationTestCase
         );
         
         $this->assertCount($messageCount, $allProcessedIds);
-        /** @var array $sentIdsArray */
+        /** @var list<int<0, max>> $sentIdsArray */
         $sentIdsArray = $sentIds;
-        /** @var array $allProcessedIdsArray */
+        /** @var list<int<0, max>> $allProcessedIdsArray */
         $allProcessedIdsArray = $allProcessedIds;
         sort($sentIdsArray);
         sort($allProcessedIdsArray);
@@ -252,9 +252,9 @@ class ConcurrentConsumptionTest extends RedisIntegrationTestCase
         // Assert
         $allProcessed = array_merge($processedByConsumer1, $processedByConsumer2);
         $this->assertCount(5, $allProcessed);
-        /** @var array $delayedMessagesArray */
+        /** @var list<int<0, max>> $delayedMessagesArray */
         $delayedMessagesArray = $delayedMessages;
-        /** @var array $allProcessedArray */
+        /** @var list<int<0, max>> $allProcessedArray */
         $allProcessedArray = $allProcessed;
         sort($delayedMessagesArray);
         sort($allProcessedArray);
