@@ -23,8 +23,8 @@ use Tourze\RedisDedicatedConnectionBundle\Attribute\WithDedicatedConnection;
  *
  * @implements TransportFactoryInterface<RedisTransport>
  */
-#[AutoconfigureTag('messenger.transport_factory')]
-#[WithDedicatedConnection('async_messenger')]
+#[AutoconfigureTag(name: 'messenger.transport_factory')]
+#[WithDedicatedConnection(channel: 'async_messenger')]
 class RedisTransportFactory implements TransportFactoryInterface
 {
     public function __construct(

@@ -51,7 +51,7 @@ class FailoverTransportIntegrationTest extends TestCase
             ->willReturnCallback(function () use (&$callCount) {
                 $callCount++;
                 if ($callCount <= 2) {
-                    throw new \RuntimeException('Primary failed');
+                    throw new \Tourze\AsyncMessengerBundle\Tests\Exception\TestTransportException('Primary failed');
                 }
                 return new Envelope(new \stdClass());
             });

@@ -8,6 +8,7 @@ use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\Receiver\ListableReceiverInterface;
 use Symfony\Component\Messenger\Transport\Receiver\ReceiverInterface;
 use Symfony\Component\Messenger\Transport\TransportInterface;
+use Tourze\AsyncMessengerBundle\Exception\TransportException;
 use Tourze\AsyncMessengerBundle\Failover\Stamp\FailoverSourceStamp;
 
 class FailoverReceiver implements ReceiverInterface, ListableReceiverInterface
@@ -84,7 +85,7 @@ class FailoverReceiver implements ReceiverInterface, ListableReceiverInterface
         $transportName = $this->getSourceTransport($envelope);
         
         if ($transportName === null || !isset($this->transports[$transportName])) {
-            throw new \LogicException('Cannot determine source transport for envelope');
+            throw new TransportException('Cannot determine source transport for envelope');
         }
         
         try {
@@ -114,7 +115,7 @@ class FailoverReceiver implements ReceiverInterface, ListableReceiverInterface
         $transportName = $this->getSourceTransport($envelope);
 
         if ($transportName === null || !isset($this->transports[$transportName])) {
-            throw new \LogicException('Cannot determine source transport for envelope');
+            throw new TransportException('Cannot determine source transport for envelope');
         }
 
         try {

@@ -22,8 +22,8 @@ use Tourze\DoctrineDedicatedConnectionBundle\Attribute\WithDedicatedConnection;
  *
  * @implements TransportFactoryInterface<DoctrineTransport>
  */
-#[AutoconfigureTag('messenger.transport_factory')]
-#[WithDedicatedConnection('async_messenger')]
+#[AutoconfigureTag(name: 'messenger.transport_factory')]
+#[WithDedicatedConnection(channel: 'async_messenger')]
 class DoctrineTransportFactory implements TransportFactoryInterface
 {
     public function __construct(

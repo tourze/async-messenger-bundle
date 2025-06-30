@@ -9,6 +9,7 @@ use Symfony\Component\Messenger\Transport\Receiver\ListableReceiverInterface;
 use Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface;
 use Symfony\Component\Messenger\Transport\SetupableTransportInterface;
 use Symfony\Component\Messenger\Transport\TransportInterface;
+use Tourze\AsyncMessengerBundle\Exception\InvalidConfigurationException;
 
 class FailoverTransport implements TransportInterface, SetupableTransportInterface, MessageCountAwareInterface, ListableReceiverInterface
 {
@@ -25,7 +26,7 @@ class FailoverTransport implements TransportInterface, SetupableTransportInterfa
         private readonly array $options = []
     ) {
         if (count($this->transports) < 2) {
-            throw new \InvalidArgumentException('Failover transport requires at least 2 transports');
+            throw new InvalidConfigurationException('Failover transport requires at least 2 transports');
         }
     }
 

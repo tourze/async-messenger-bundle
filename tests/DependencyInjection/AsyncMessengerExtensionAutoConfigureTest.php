@@ -195,6 +195,10 @@ class AsyncMessengerExtensionAutoConfigureTest extends TestCase
     }
 }
 
+/**
+ * @internal
+ * Mock class for testing purposes only
+ */
 class MockFrameworkExtension extends \Symfony\Component\DependencyInjection\Extension\Extension
 {
     public function load(array $configs, ContainerBuilder $container): void

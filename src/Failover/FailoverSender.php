@@ -7,6 +7,7 @@ namespace Tourze\AsyncMessengerBundle\Failover;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\Sender\SenderInterface;
 use Symfony\Component\Messenger\Transport\TransportInterface;
+use Tourze\AsyncMessengerBundle\Exception\FailoverException;
 
 class FailoverSender implements SenderInterface
 {
@@ -104,6 +105,6 @@ class FailoverSender implements SenderInterface
             ]);
         }
         
-        throw new \RuntimeException($errorMessage, 0, $lastException);
+        throw new FailoverException($errorMessage, 0, $lastException);
     }
 }

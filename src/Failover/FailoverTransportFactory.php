@@ -8,12 +8,13 @@ use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
 use Symfony\Component\Messenger\Transport\TransportFactoryInterface;
 use Symfony\Component\Messenger\Transport\TransportInterface;
+use Tourze\AsyncMessengerBundle\Exception\InvalidConfigurationException;
 use Tourze\AsyncMessengerBundle\Failover\ConsumptionStrategy\RoundRobinStrategy;
 
 /**
  * @implements TransportFactoryInterface<FailoverTransport>
  */
-#[AutoconfigureTag('messenger.transport_factory')]
+#[AutoconfigureTag(name: 'messenger.transport_factory')]
 class FailoverTransportFactory implements TransportFactoryInterface
 {
     /**
@@ -30,7 +31,7 @@ class FailoverTransportFactory implements TransportFactoryInterface
         $transportDsns = $this->parseTransportDsns($dsn);
         
         if (count($transportDsns) < 2) {
-            throw new \InvalidArgumentException('Failover transport requires at least 2 transport DSNs');
+            throw new InvalidConfigurationException('Failover transport requires at least 2 transport DSNs');
         }
         
         // Create transports from DSNs
@@ -45,7 +46,7 @@ class FailoverTransportFactory implements TransportFactoryInterface
                 $transportDsn = match($transportDsn) {
                     'async_doctrine' => 'async-doctrine://',
                     'async_redis' => 'async-redis://',
-                    default => throw new \InvalidArgumentException(sprintf('Unknown transport name: %s', $transportDsn))
+                    default => throw new InvalidConfigurationException(sprintf('Unknown transport name: %s', $transportDsn))
                 };
             }
 
@@ -64,7 +65,7 @@ class FailoverTransportFactory implements TransportFactoryInterface
             }
 
             if ($transport === null) {
-                throw new \InvalidArgumentException(sprintf('No factory found for DSN: %s', $transportDsn));
+                throw new InvalidConfigurationException(sprintf('No factory found for DSN: %s', $transportDsn));
             }
 
             $transports[$transportName] = $transport;
@@ -98,7 +99,7 @@ class FailoverTransportFactory implements TransportFactoryInterface
         $transportList = substr($dsn, strlen('failover://'));
 
         if (empty($transportList)) {
-            throw new \InvalidArgumentException('No transport DSNs provided in DSN');
+            throw new InvalidConfigurationException('No transport DSNs provided in DSN');
         }
 
         return array_map('trim', explode(',', $transportList));
@@ -111,7 +112,7 @@ class FailoverTransportFactory implements TransportFactoryInterface
             'weighted_round_robin' => new ConsumptionStrategy\WeightedRoundRobinStrategy(),
             'adaptive_priority' => new ConsumptionStrategy\AdaptivePriorityStrategy($options['adaptive_priority'] ?? []),
             'latency_aware' => new ConsumptionStrategy\LatencyAwareStrategy($options['latency_aware'] ?? []),
-            default => throw new \InvalidArgumentException(sprintf('Unknown consumption strategy: %s', $name))
+            default => throw new InvalidConfigurationException(sprintf('Unknown consumption strategy: %s', $name))
         };
     }
     

@@ -207,18 +207,18 @@ class Connection
             }
         } catch (\RedisException $e) {
             $error = $redis->getLastError();
-            if ($error !== false) {
+            if ($error !== null) {
                 $redis->clearLastError();
             }
-            throw new TransportException($error ?: $e->getMessage(), 0, $e);
+            throw new TransportException($error !== null ? $error : $e->getMessage(), 0, $e);
         }
 
         if (!$added) {
             $error = $redis->getLastError();
-            if ($error !== false) {
+            if ($error !== null) {
                 $redis->clearLastError();
             }
-            throw new TransportException($error ?: 'Could not add a message to the redis queue.');
+            throw new TransportException($error !== null ? $error : 'Could not add a message to the redis queue.');
         }
 
         return $id;
@@ -304,10 +304,10 @@ class Connection
 
         try {
             // Get count from normal queue
-            $normalCount = $redis->lLen($this->queue) ?: 0;
+            $normalCount = (int) $redis->lLen($this->queue);
 
             // Get count from delayed queue
-            $delayedCount = $redis->zCard($this->delayedQueue) ?: 0;
+            $delayedCount = (int) $redis->zCard($this->delayedQueue);
 
             // Include processing messages
             $processingCount = count($this->processingMessages);
