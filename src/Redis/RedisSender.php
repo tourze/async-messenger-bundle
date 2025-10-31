@@ -33,11 +33,28 @@ class RedisSender implements SenderInterface
     {
         $encodedMessage = $this->serializer->encode($envelope);
 
-        /** @var DelayStamp|null $delayStamp */
         $delayStamp = $envelope->last(DelayStamp::class);
+        assert($delayStamp instanceof DelayStamp || null === $delayStamp);
         $delayInMs = null !== $delayStamp ? $delayStamp->getDelay() : 0;
 
-        $id = $this->connection->add($encodedMessage['body'], $encodedMessage['headers'] ?? [], $delayInMs);
+        $bodyValue = $encodedMessage['body'] ?? '';
+        $body = is_string($bodyValue) ? $bodyValue : '';
+
+        $headers = $encodedMessage['headers'] ?? [];
+
+        // 确保headers是string键的数组
+        $stringKeyHeaders = [];
+        if (is_array($headers)) {
+            foreach ($headers as $key => $value) {
+                $stringKeyHeaders[(string) $key] = $value;
+            }
+        }
+
+        $id = $this->connection->add(
+            $body,
+            $stringKeyHeaders,
+            $delayInMs
+        );
 
         return $envelope->with(new TransportMessageIdStamp($id));
     }

@@ -2,8 +2,12 @@
 
 namespace Tourze\AsyncMessengerBundle\Tests\Doctrine;
 
-use Doctrine\DBAL\Exception as DBALException;
-use Doctrine\DBAL\Exception\RetryableException;
+use Doctrine\DBAL\Driver\Exception as DriverException;
+use Doctrine\DBAL\Exception;
+use Doctrine\DBAL\Exception\RetryableException as DBALRetryableException;
+use Doctrine\DBAL\Exception\ServerException;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\LogicException;
@@ -16,19 +20,19 @@ use Tourze\AsyncMessengerBundle\Doctrine\Connection;
 use Tourze\AsyncMessengerBundle\Doctrine\DoctrineReceiver;
 use Tourze\AsyncMessengerBundle\Stamp\DoctrineReceivedStamp;
 
-class DoctrineReceiverTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(DoctrineReceiver::class)]
+final class DoctrineReceiverTest extends TestCase
 {
-    private Connection $connection;
-    private SerializerInterface $serializer;
+    private Connection&MockObject $connection;
+
+    private SerializerInterface&MockObject $serializer;
+
     private DoctrineReceiver $receiver;
 
-    public function test_implements_required_interfaces(): void
-    {
-        $this->assertInstanceOf(\Symfony\Component\Messenger\Transport\Receiver\ListableReceiverInterface::class, $this->receiver);
-        $this->assertInstanceOf(\Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface::class, $this->receiver);
-    }
-
-    public function test_usesDefaultSerializerWhenNoneProvided(): void
+    public function testUsesDefaultSerializerWhenNoneProvided(): void
     {
         $receiver = new DoctrineReceiver($this->connection);
 
@@ -41,38 +45,41 @@ class DoctrineReceiverTest extends TestCase
         $this->assertInstanceOf(PhpSerializer::class, $serializer);
     }
 
-    public function test_get_withNoMessages_returnsEmptyArray(): void
+    public function testGetWithNoMessagesReturnsEmptyArray(): void
     {
         $this->connection->expects($this->once())
             ->method('get')
-            ->willReturn(null);
+            ->willReturn(null)
+        ;
 
         $result = $this->receiver->get();
 
         $this->assertEquals([], iterator_to_array($result));
     }
 
-    public function test_get_withMessage_returnsEnvelopeWithStamps(): void
+    public function testGetWithMessageReturnsEnvelopeWithStamps(): void
     {
         $messageData = [
             'id' => '123',
             'body' => 'message-body',
-            'headers' => ['header1' => 'value1']
+            'headers' => ['header1' => 'value1'],
         ];
         $message = new \stdClass();
-        $originalEnvelope = new Envelope($message);
+        $originalEnvelope = new Envelope($message, []);
 
         $this->connection->expects($this->once())
             ->method('get')
-            ->willReturn($messageData);
+            ->willReturn($messageData)
+        ;
 
         $this->serializer->expects($this->once())
             ->method('decode')
             ->with([
                 'body' => 'message-body',
-                'headers' => ['header1' => 'value1']
+                'headers' => ['header1' => 'value1'],
             ])
-            ->willReturn($originalEnvelope);
+            ->willReturn($originalEnvelope)
+        ;
 
         $result = iterator_to_array($this->receiver->get());
 
@@ -90,26 +97,29 @@ class DoctrineReceiverTest extends TestCase
         $this->assertEquals('123', $transportIdStamp->getId());
     }
 
-    public function test_get_whenDecodingFails_rejectsMessageAndThrowsException(): void
+    public function testGetWhenDecodingFailsRejectsMessageAndThrowsException(): void
     {
         $messageData = [
             'id' => '123',
             'body' => 'invalid-body',
-            'headers' => []
+            'headers' => [],
         ];
         $decodingException = new MessageDecodingFailedException('Decoding failed');
 
         $this->connection->expects($this->once())
             ->method('get')
-            ->willReturn($messageData);
+            ->willReturn($messageData)
+        ;
 
         $this->serializer->expects($this->once())
             ->method('decode')
-            ->willThrowException($decodingException);
+            ->willThrowException($decodingException)
+        ;
 
         $this->connection->expects($this->once())
             ->method('reject')
-            ->with('123');
+            ->with('123')
+        ;
 
         $this->expectException(MessageDecodingFailedException::class);
         $this->expectExceptionMessage('Decoding failed');
@@ -117,13 +127,17 @@ class DoctrineReceiverTest extends TestCase
         iterator_to_array($this->receiver->get());
     }
 
-    public function test_get_withRetryableException_retriesUpToMaxRetries(): void
+    public function testGetWithRetryableExceptionRetriesUpToMaxRetries(): void
     {
-        $retryableException = $this->createMock(RetryableException::class);
+        // 理由1：RetryableException是具体异常类，没有对应的接口可以使用
+        // 理由2：测试重试行为不需要创建真实的异常对象，Mock可以模拟异常行为
+        // 理由3：Receiver检查这个异常类型来决定是否重试，Mock可以控制测试流程
+        $retryableException = $this->createMock(DBALRetryableException::class);
 
         $this->connection->expects($this->exactly(3))
             ->method('get')
-            ->willThrowException($retryableException);
+            ->willThrowException($retryableException)
+        ;
 
         // 前两次应该返回空数组，第三次应该抛出异常
         $result1 = iterator_to_array($this->receiver->get());
@@ -136,34 +150,37 @@ class DoctrineReceiverTest extends TestCase
         iterator_to_array($this->receiver->get());
     }
 
-    public function test_get_withDBALException_throwsTransportException(): void
+    public function testGetWithDBALExceptionThrowsTransportException(): void
     {
-        $dbalException = new class('Database error') extends \Exception implements DBALException {};
+        $driverException = $this->createMock(DriverException::class);
+        $dbalException = new ServerException($driverException, null);
 
         $this->connection->expects($this->once())
             ->method('get')
-            ->willThrowException($dbalException);
+            ->willThrowException($dbalException)
+        ;
 
         $this->expectException(TransportException::class);
-        $this->expectExceptionMessage('Database error');
+        $this->expectExceptionMessage('An exception occurred in the driver:');
 
         iterator_to_array($this->receiver->get());
     }
 
-    public function test_ack_withValidEnvelope_acknowledgesMessage(): void
+    public function testAckWithValidEnvelopeAcknowledgesMessage(): void
     {
         $envelope = new Envelope(new \stdClass(), [new DoctrineReceivedStamp('123')]);
 
         $this->connection->expects($this->once())
             ->method('ack')
-            ->with('123');
+            ->with('123')
+        ;
 
         $this->receiver->ack($envelope);
     }
 
-    public function test_ack_withoutDoctrineReceivedStamp_throwsLogicException(): void
+    public function testAckWithoutDoctrineReceivedStampThrowsLogicException(): void
     {
-        $envelope = new Envelope(new \stdClass());
+        $envelope = new Envelope(new \stdClass(), []);
 
         $this->expectException(LogicException::class);
         $this->expectExceptionMessage('No DoctrineReceivedStamp found on the Envelope.');
@@ -171,20 +188,21 @@ class DoctrineReceiverTest extends TestCase
         $this->receiver->ack($envelope);
     }
 
-    public function test_reject_withValidEnvelope_rejectsMessage(): void
+    public function testRejectWithValidEnvelopeRejectsMessage(): void
     {
         $envelope = new Envelope(new \stdClass(), [new DoctrineReceivedStamp('456')]);
 
         $this->connection->expects($this->once())
             ->method('reject')
-            ->with('456');
+            ->with('456')
+        ;
 
         $this->receiver->reject($envelope);
     }
 
-    public function test_reject_withoutDoctrineReceivedStamp_throwsLogicException(): void
+    public function testRejectWithoutDoctrineReceivedStampThrowsLogicException(): void
     {
-        $envelope = new Envelope(new \stdClass());
+        $envelope = new Envelope(new \stdClass(), []);
 
         $this->expectException(LogicException::class);
         $this->expectExceptionMessage('No DoctrineReceivedStamp found on the Envelope.');
@@ -192,98 +210,110 @@ class DoctrineReceiverTest extends TestCase
         $this->receiver->reject($envelope);
     }
 
-    public function test_keepalive_updatesMessageDeliveryTime(): void
+    public function testKeepaliveUpdatesMessageDeliveryTime(): void
     {
         $envelope = new Envelope(new \stdClass(), [new DoctrineReceivedStamp('789')]);
         $seconds = 30;
 
         $this->connection->expects($this->once())
             ->method('keepalive')
-            ->with('789', $seconds);
+            ->with('789', $seconds)
+        ;
 
         $this->receiver->keepalive($envelope, $seconds);
     }
 
-    public function test_getMessageCount_returnsConnectionMessageCount(): void
+    public function testGetMessageCountReturnsConnectionMessageCount(): void
     {
         $expectedCount = 42;
 
         $this->connection->expects($this->once())
             ->method('getMessageCount')
-            ->willReturn($expectedCount);
+            ->willReturn($expectedCount)
+        ;
 
         $result = $this->receiver->getMessageCount();
         $this->assertEquals($expectedCount, $result);
     }
 
-    public function test_getMessageCount_withDBALException_throwsTransportException(): void
+    public function testGetMessageCountWithDBALExceptionThrowsTransportException(): void
     {
-        $dbalException = new class('Count failed') extends \Exception implements DBALException {};
+        $driverException = $this->createMock(DriverException::class);
+        $dbalException = new ServerException($driverException, null);
 
         $this->connection->expects($this->once())
             ->method('getMessageCount')
-            ->willThrowException($dbalException);
+            ->willThrowException($dbalException)
+        ;
 
         $this->expectException(TransportException::class);
-        $this->expectExceptionMessage('Count failed');
+        $this->expectExceptionMessage('An exception occurred in the driver:');
 
         $this->receiver->getMessageCount();
     }
 
-    public function test_all_returnsAllMessages(): void
+    public function testAllReturnsAllMessages(): void
     {
         $limit = 10;
         $messagesData = [
             ['id' => '1', 'body' => 'body1', 'headers' => []],
-            ['id' => '2', 'body' => 'body2', 'headers' => []]
+            ['id' => '2', 'body' => 'body2', 'headers' => []],
         ];
 
-        $message1 = new Envelope(new \stdClass());
-        $message2 = new Envelope(new \stdClass());
+        $message1 = new Envelope(new \stdClass(), []);
+        $message2 = new Envelope(new \stdClass(), []);
 
         $this->connection->expects($this->once())
             ->method('findAll')
             ->with($limit)
-            ->willReturn($messagesData);
+            ->willReturn((function () use ($messagesData) { yield from $messagesData; })())
+        ;
 
         $this->serializer->expects($this->exactly(2))
             ->method('decode')
-            ->willReturnOnConsecutiveCalls($message1, $message2);
+            ->willReturnOnConsecutiveCalls($message1, $message2)
+        ;
 
         $result = iterator_to_array($this->receiver->all($limit));
 
         $this->assertCount(2, $result);
-        $this->assertContainsOnlyInstancesOf(Envelope::class, $result);
+        // 验证所有元素都是正确的类型，因为类型已从PHPDoc推导出，只需验证具体行为
+        foreach ($result as $envelope) {
+            $this->assertInstanceOf(Envelope::class, $envelope);
+        }
     }
 
-    public function test_find_withExistingId_returnsEnvelope(): void
+    public function testFindWithExistingIdReturnsEnvelope(): void
     {
         $id = '123';
         $messageData = ['id' => '123', 'body' => 'body', 'headers' => []];
-        $originalEnvelope = new Envelope(new \stdClass());
+        $originalEnvelope = new Envelope(new \stdClass(), []);
 
         $this->connection->expects($this->once())
             ->method('find')
             ->with($id)
-            ->willReturn($messageData);
+            ->willReturn($messageData)
+        ;
 
         $this->serializer->expects($this->once())
             ->method('decode')
-            ->willReturn($originalEnvelope);
+            ->willReturn($originalEnvelope)
+        ;
 
         $result = $this->receiver->find($id);
 
         $this->assertInstanceOf(Envelope::class, $result);
     }
 
-    public function test_find_withNonExistentId_returnsNull(): void
+    public function testFindWithNonExistentIdReturnsNull(): void
     {
         $id = '999';
 
         $this->connection->expects($this->once())
             ->method('find')
             ->with($id)
-            ->willReturn(null);
+            ->willReturn(null)
+        ;
 
         $result = $this->receiver->find($id);
 
@@ -292,6 +322,11 @@ class DoctrineReceiverTest extends TestCase
 
     protected function setUp(): void
     {
+        parent::setUp();
+
+        // 理由1：Connection是Doctrine DBAL的具体类，没有对应的接口可以使用
+        // 理由2：测试Receiver逻辑不需要真实的数据库交互，Mock可以隔离数据库依赖
+        // 理由3：Receiver需要Connection的查询和更新方法，但不需要真实数据库
         $this->connection = $this->createMock(Connection::class);
         $this->serializer = $this->createMock(SerializerInterface::class);
         $this->receiver = new DoctrineReceiver($this->connection, $this->serializer);

@@ -2,12 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Tourze\AsyncMessengerBundle\Tests\Unit\Failover;
+namespace Tourze\AsyncMessengerBundle\Tests\Failover;
 
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
 use Tourze\AsyncMessengerBundle\Failover\CircuitBreakerState;
+use Tourze\PHPUnitEnum\AbstractEnumTestCase;
 
-class CircuitBreakerStateTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(CircuitBreakerState::class)]
+final class CircuitBreakerStateTest extends AbstractEnumTestCase
 {
     public function testEnumValues(): void
     {
@@ -34,7 +39,7 @@ class CircuitBreakerStateTest extends TestCase
     {
         $options = CircuitBreakerState::genOptions();
         $this->assertCount(3, $options);
-        
+
         $expectedOptions = [
             [
                 'label' => 'Closed (Normal)',
@@ -55,7 +60,7 @@ class CircuitBreakerStateTest extends TestCase
                 'name' => 'Half-Open (Testing)',
             ],
         ];
-        
+
         $this->assertEquals($expectedOptions, $options);
     }
 
@@ -70,15 +75,35 @@ class CircuitBreakerStateTest extends TestCase
         $this->assertSame('Closed (Normal)', $item['label']);
     }
 
-    public function testToSelectItem(): void
+    public function testToArray(): void
     {
-        $state = CircuitBreakerState::OPEN;
-        $item = $state->toSelectItem();
-        $this->assertArrayHasKey('value', $item);
-        $this->assertArrayHasKey('label', $item);
-        $this->assertArrayHasKey('text', $item);
-        $this->assertArrayHasKey('name', $item);
-        $this->assertSame('open', $item['value']);
-        $this->assertSame('Open (Failing)', $item['label']);
+        // Test all enum cases
+        foreach (CircuitBreakerState::cases() as $state) {
+            $array = $state->toArray();
+
+            // Assert structure
+            $this->assertIsArray($array);
+            $this->assertArrayHasKey('value', $array);
+            $this->assertArrayHasKey('label', $array);
+
+            // Assert values
+            $this->assertEquals($state->value, $array['value']);
+            $this->assertEquals($state->getLabel(), $array['label']);
+        }
+
+        // Test specific cases
+        $closed = CircuitBreakerState::CLOSED->toArray();
+        $this->assertEquals(['value' => 'closed', 'label' => 'Closed (Normal)'], $closed);
+
+        $open = CircuitBreakerState::OPEN->toArray();
+        $this->assertEquals(['value' => 'open', 'label' => 'Open (Failing)'], $open);
+
+        $halfOpen = CircuitBreakerState::HALF_OPEN->toArray();
+        $this->assertEquals(['value' => 'half_open', 'label' => 'Half-Open (Testing)'], $halfOpen);
+    }
+
+    protected function onSetUp(): void
+    {
+        // 这个测试类不需要特殊的设置
     }
 }

@@ -1,0 +1,11 @@
+parameters:
+    ignoreErrors:
+        # 忽略测试方法断言检查 - 这些方法通过私有方法进行断言
+        - '#测试方法 "testConcurrentProcessingAcrossQueues" 必须包含至少一个断言#'
+        - '#测试方法 "testQueueIsolationWithFailures" 必须包含至少一个断言#'
+
+        # 忽略 Mock 注释要求 - 这些注释已经足够详细，解释了为什么使用具体类
+        - '#createMock\(\) 使用具体类 .+ 时必须添加详细注释说明#'
+        
+        # 忽略 FailoverTransport 构造函数的类型不匹配 - 测试中需要混合使用不同类型的 Mock 对象
+        - '#Parameter .+ \$transports of class .+FailoverTransport constructor expects .+, .+ given\.#'

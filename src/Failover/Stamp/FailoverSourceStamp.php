@@ -9,7 +9,7 @@ use Symfony\Component\Messenger\Stamp\StampInterface;
 class FailoverSourceStamp implements StampInterface
 {
     public function __construct(
-        private readonly string $transportName
+        private readonly string $transportName,
     ) {
     }
 

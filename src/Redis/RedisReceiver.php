@@ -36,6 +36,9 @@ class RedisReceiver implements MessageCountAwareInterface
         $this->serializer = $serializer ?? new PhpSerializer();
     }
 
+    /**
+     * @return iterable<Envelope>
+     */
     public function get(): iterable
     {
         $message = $this->connection->get();
@@ -44,45 +47,82 @@ class RedisReceiver implements MessageCountAwareInterface
             return [];
         }
 
-        if (null === $message['data']) {
-            try {
-                $this->connection->reject($message['id']);
-            } catch (TransportException $e) {
-                if (null !== $e->getPrevious()) {
-                    throw $e;
-                }
-            }
-
+        if (!$this->isValidMessage($message)) {
             return $this->get();
         }
 
-        $redisEnvelope = json_decode($message['data']['message'] ?? '', true);
+        $envelope = $this->decodeMessage($message);
 
-        if (null === $redisEnvelope) {
+        if (null === $envelope) {
             return [];
         }
 
-        try {
-            if (\array_key_exists('body', $redisEnvelope) && \array_key_exists('headers', $redisEnvelope)) {
-                $envelope = $this->serializer->decode([
-                    'body' => $redisEnvelope['body'],
-                    'headers' => $redisEnvelope['headers'],
-                ]);
-            } else {
-                $envelope = $this->serializer->decode($redisEnvelope);
-            }
-        } catch (MessageDecodingFailedException $exception) {
-            $this->connection->reject($message['id']);
-
-            throw $exception;
-        }
+        $messageIdValue = $message['id'] ?? '';
+        $messageId = is_scalar($messageIdValue) ? (string) $messageIdValue : '';
 
         return [$envelope
             ->withoutAll(TransportMessageIdStamp::class)
             ->with(
-                new RedisReceivedStamp($message['id']),
-                new TransportMessageIdStamp($message['id'])
+                new RedisReceivedStamp($messageId),
+                new TransportMessageIdStamp($messageId)
             )];
+    }
+
+    /**
+     * @param array<string, mixed> $message
+     */
+    private function isValidMessage(array $message): bool
+    {
+        if (null !== $message['data']) {
+            return true;
+        }
+
+        try {
+            $messageIdValue = $message['id'] ?? '';
+            $messageId = is_scalar($messageIdValue) ? (string) $messageIdValue : '';
+            $this->connection->reject($messageId);
+        } catch (TransportException $e) {
+            if (null !== $e->getPrevious()) {
+                throw $e;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param array<string, mixed> $message
+     */
+    private function decodeMessage(array $message): ?Envelope
+    {
+        $messageData = $message['data'] ?? null;
+        if (!is_array($messageData) || !isset($messageData['message'])) {
+            return null;
+        }
+
+        $messageContentValue = $messageData['message'] ?? '';
+        $messageContent = is_string($messageContentValue) ? $messageContentValue : '';
+        $redisEnvelope = json_decode($messageContent, true);
+
+        if (!is_array($redisEnvelope)) {
+            return null;
+        }
+
+        try {
+            if (\array_key_exists('body', $redisEnvelope) && \array_key_exists('headers', $redisEnvelope)) {
+                return $this->serializer->decode([
+                    'body' => $redisEnvelope['body'],
+                    'headers' => $redisEnvelope['headers'],
+                ]);
+            }
+
+            return $this->serializer->decode($redisEnvelope);
+        } catch (MessageDecodingFailedException $exception) {
+            $messageIdValue = $message['id'] ?? '';
+            $messageId = is_scalar($messageIdValue) ? (string) $messageIdValue : '';
+            $this->connection->reject($messageId);
+            throw $exception;
+        }
     }
 
     public function reject(Envelope $envelope): void
@@ -92,8 +132,8 @@ class RedisReceiver implements MessageCountAwareInterface
 
     private function findRedisReceivedStamp(Envelope $envelope): RedisReceivedStamp
     {
-        /** @var RedisReceivedStamp|null $redisReceivedStamp */
         $redisReceivedStamp = $envelope->last(RedisReceivedStamp::class);
+        assert($redisReceivedStamp instanceof RedisReceivedStamp || null === $redisReceivedStamp);
 
         if (null === $redisReceivedStamp) {
             throw new LogicException('No RedisReceivedStamp found on the Envelope.');

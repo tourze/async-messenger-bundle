@@ -14,16 +14,18 @@ use Tourze\AsyncMessengerBundle\Exception\InvalidConfigurationException;
 class FailoverTransport implements TransportInterface, SetupableTransportInterface, MessageCountAwareInterface, ListableReceiverInterface
 {
     private FailoverReceiver $receiver;
+
     private FailoverSender $sender;
 
     /**
-     * @param TransportInterface[] $transports
+     * @param array<string, TransportInterface> $transports
      */
     public function __construct(
         private readonly array $transports,
         private readonly CircuitBreakerInterface $circuitBreaker,
         private readonly ConsumptionStrategyInterface $consumptionStrategy,
-        private readonly array $options = []
+        /** @var array<string, mixed> */
+        private readonly array $options = [],
     ) {
         if (count($this->transports) < 2) {
             throw new InvalidConfigurationException('Failover transport requires at least 2 transports');
@@ -95,6 +97,7 @@ class FailoverTransport implements TransportInterface, SetupableTransportInterfa
                 }
             }
         }
+
         return $count;
     }
 

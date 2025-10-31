@@ -1,6 +1,32 @@
 # AsyncMessengerBundle
 
+[English](README.md) | [中文](README.zh-CN.md)
+
+[![PHP](https://img.shields.io/badge/php-%5E8.1-blue)](https://www.php.net/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Symfony](https://img.shields.io/badge/symfony-%5E6.4-green)](https://symfony.com/)
+
+[![CI](https://github.com/tourze/php-monorepo/workflows/CI/badge.svg)](https://github.com/tourze/php-monorepo/actions)
+[![codecov](https://codecov.io/gh/tourze/php-monorepo/graph/badge.svg?flag=async-messenger-bundle)](https://codecov.io/gh/tourze/php-monorepo)
+
 为 Symfony Messenger 提供 Redis 和 Doctrine 传输的 Symfony 包，支持延迟和定时消息。
+
+## 目录
+
+- [功能特性](#功能特性)
+- [安装](#安装)
+- [配置](#配置)
+  - [自动传输注册](#自动传输注册)
+  - [环境变量](#环境变量)
+- [使用传输](#使用传输)
+  - [基础配置](#基础配置)
+  - [自定义传输配置](#自定义传输配置)
+- [使用方法](#使用方法)
+- [高级用法](#高级用法)
+  - [性能调优](#性能调优)
+  - [监控和调试](#监控和调试)
+- [系统要求](#系统要求)
+- [许可证](#许可证)
 
 ## 功能特性
 
@@ -43,7 +69,9 @@ ASYNC_MESSENGER_AUTO_CONFIGURE=true
 
 所有详细配置（表名、队列名、超时等）都由传输工厂内部处理，并提供合理的默认值。
 
-### 使用传输
+## 使用传输
+
+### 基础配置
 
 安装后，传输会自动在您的 messenger 配置中可用：
 
@@ -99,9 +127,51 @@ class MyController
 }
 ```
 
+## 高级用法
+
+### 性能调优
+
+对于高吞吐量应用，可以考虑以下配置选项：
+
+```yaml
+framework:
+    messenger:
+        transports:
+            async_redis:
+                dsn: 'async-redis://'
+                options:
+                    max_queue_size: 10000
+                    redeliver_timeout: 3600
+            
+            async_doctrine:
+                dsn: 'async-doctrine://'
+                options:
+                    table_name: 'messenger_messages'
+                    queue_name: 'high_priority'
+                    redeliver_timeout: 1800
+```
+
+### 监控和调试
+
+Bundle 通过戳记和异常提供内置监控功能：
+
+```php
+use Tourze\AsyncMessengerBundle\Stamp\FailoverSourceStamp;
+
+// 检查消息由哪个传输处理
+$sourceStamp = $envelope->last(FailoverSourceStamp::class);
+if ($sourceStamp) {
+    echo "消息由以下传输处理: " . $sourceStamp->getTransportName();
+}
+```
+
 ## 系统要求
 
 - PHP 8.1+
 - Symfony 6.4+
 - Redis 扩展 4.3.0+（用于 Redis 传输）
 - Doctrine ORM（用于 Doctrine 传输）
+
+## 许可证
+
+此包采用 MIT 许可证发布。详情请参阅 [LICENSE](LICENSE) 文件。

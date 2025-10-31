@@ -4,20 +4,30 @@ declare(strict_types=1);
 
 namespace Tourze\AsyncMessengerBundle\Tests\Failover\ConsumptionStrategy;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Transport\TransportInterface;
 use Tourze\AsyncMessengerBundle\Failover\CircuitBreakerInterface;
 use Tourze\AsyncMessengerBundle\Failover\ConsumptionStrategy\LatencyAwareStrategy;
 
+/**
+ * @internal
+ */
+#[CoversClass(LatencyAwareStrategy::class)]
 final class LatencyAwareStrategyTest extends TestCase
 {
     private LatencyAwareStrategy $strategy;
+
     private CircuitBreakerInterface $circuitBreaker;
 
     protected function setUp(): void
     {
+        parent::setUp();
         $this->strategy = new LatencyAwareStrategy();
-        $this->circuitBreaker = $this->createMock(CircuitBreakerInterface::class);
+        /** @var CircuitBreakerInterface&MockObject $circuitBreaker */
+        $circuitBreaker = $this->createMock(CircuitBreakerInterface::class);
+        $this->circuitBreaker = $circuitBreaker;
     }
 
     public function testSelectTransportReturnsLowestLatencyTransport(): void
@@ -27,18 +37,21 @@ final class LatencyAwareStrategyTest extends TestCase
             'transport2' => $this->createMock(TransportInterface::class),
             'transport3' => $this->createMock(TransportInterface::class),
         ];
-        
-        $this->circuitBreaker
+
+        /** @var CircuitBreakerInterface&MockObject $circuitBreaker */
+        $circuitBreaker = $this->circuitBreaker;
+        $circuitBreaker
             ->method('isAvailable')
-            ->willReturn(true);
-        
+            ->willReturn(true)
+        ;
+
         // Set different latencies
         $this->strategy->recordResult('transport1', true, 0.5);
         $this->strategy->recordResult('transport2', true, 0.1);
         $this->strategy->recordResult('transport3', true, 0.3);
-        
+
         $selected = $this->strategy->selectTransport($transports, $this->circuitBreaker);
-        
+
         self::assertEquals('transport2', $selected);
     }
 
@@ -48,13 +61,16 @@ final class LatencyAwareStrategyTest extends TestCase
             'transport1' => $this->createMock(TransportInterface::class),
             'transport2' => $this->createMock(TransportInterface::class),
         ];
-        
-        $this->circuitBreaker
+
+        /** @var CircuitBreakerInterface&MockObject $circuitBreaker */
+        $circuitBreaker = $this->circuitBreaker;
+        $circuitBreaker
             ->method('isAvailable')
-            ->willReturn(true);
-        
+            ->willReturn(true)
+        ;
+
         $selected = $this->strategy->selectTransport($transports, $this->circuitBreaker);
-        
+
         self::assertContains($selected, ['transport1', 'transport2']);
     }
 
@@ -63,13 +79,16 @@ final class LatencyAwareStrategyTest extends TestCase
         $transports = [
             'transport1' => $this->createMock(TransportInterface::class),
         ];
-        
-        $this->circuitBreaker
+
+        /** @var CircuitBreakerInterface&MockObject $circuitBreaker */
+        $circuitBreaker = $this->circuitBreaker;
+        $circuitBreaker
             ->method('isAvailable')
-            ->willReturn(false);
-        
+            ->willReturn(false)
+        ;
+
         $selected = $this->strategy->selectTransport($transports, $this->circuitBreaker);
-        
+
         self::assertNull($selected);
     }
 
@@ -79,22 +98,25 @@ final class LatencyAwareStrategyTest extends TestCase
             'transport1' => $this->createMock(TransportInterface::class),
             'transport2' => $this->createMock(TransportInterface::class),
         ];
-        
-        $this->circuitBreaker
+
+        /** @var CircuitBreakerInterface&MockObject $circuitBreaker */
+        $circuitBreaker = $this->circuitBreaker;
+        $circuitBreaker
             ->method('isAvailable')
-            ->willReturn(true);
-        
+            ->willReturn(true)
+        ;
+
         // Record multiple latencies for transport1
         $this->strategy->recordResult('transport1', true, 0.1);
         $this->strategy->recordResult('transport1', true, 0.2);
         $this->strategy->recordResult('transport1', true, 0.3);
-        
+
         // Record single latency for transport2
         $this->strategy->recordResult('transport2', true, 0.25);
-        
+
         // transport1 should have average latency of 0.2, so it should be selected
         $selected = $this->strategy->selectTransport($transports, $this->circuitBreaker);
-        
+
         self::assertEquals('transport1', $selected);
     }
 
@@ -103,17 +125,20 @@ final class LatencyAwareStrategyTest extends TestCase
         $transports = [
             'transport1' => $this->createMock(TransportInterface::class),
         ];
-        
-        $this->circuitBreaker
+
+        /** @var CircuitBreakerInterface&MockObject $circuitBreaker */
+        $circuitBreaker = $this->circuitBreaker;
+        $circuitBreaker
             ->method('isAvailable')
-            ->willReturn(true);
-        
+            ->willReturn(true)
+        ;
+
         $this->strategy->recordResult('transport1', true, 0.1);
         $this->strategy->recordResult('transport1', false, 1.0); // Failure with high latency
         $this->strategy->recordResult('transport1', true, 0.1);
-        
+
         $selected = $this->strategy->selectTransport($transports, $this->circuitBreaker);
-        
+
         self::assertEquals('transport1', $selected);
     }
 
@@ -124,22 +149,25 @@ final class LatencyAwareStrategyTest extends TestCase
             'transport2' => $this->createMock(TransportInterface::class),
             'transport3' => $this->createMock(TransportInterface::class),
         ];
-        
-        $this->circuitBreaker
+
+        /** @var CircuitBreakerInterface&MockObject $circuitBreaker */
+        $circuitBreaker = $this->circuitBreaker;
+        $circuitBreaker
             ->method('isAvailable')
             ->willReturnMap([
                 ['transport1', false],
                 ['transport2', true],
                 ['transport3', true],
-            ]);
-        
+            ])
+        ;
+
         // transport1 has lowest latency but is not available
         $this->strategy->recordResult('transport1', true, 0.1);
         $this->strategy->recordResult('transport2', true, 0.2);
         $this->strategy->recordResult('transport3', true, 0.3);
-        
+
         $selected = $this->strategy->selectTransport($transports, $this->circuitBreaker);
-        
+
         self::assertEquals('transport2', $selected);
     }
 }

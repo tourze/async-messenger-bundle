@@ -27,6 +27,7 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
 class DoctrineTransport implements TransportInterface, SetupableTransportInterface, MessageCountAwareInterface, ListableReceiverInterface
 {
     private DoctrineReceiver $receiver;
+
     private DoctrineSender $sender;
 
     public function __construct(
@@ -91,7 +92,7 @@ class DoctrineTransport implements TransportInterface, SetupableTransportInterfa
     }
 
     /**
-     * Adds the Table to the Schema if this transport uses this connection.
+     * 如果此传输使用此连接，则将表添加到架构中。
      */
     public function configureSchema(Schema $schema, DbalConnection $forConnection, \Closure $isSameDatabase): void
     {
@@ -99,7 +100,7 @@ class DoctrineTransport implements TransportInterface, SetupableTransportInterfa
     }
 
     /**
-     * Adds extra SQL if the given table was created by the Connection.
+     * 如果给定的表是由连接创建的，则添加额外的 SQL。
      *
      * @return string[]
      */

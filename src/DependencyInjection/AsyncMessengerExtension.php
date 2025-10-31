@@ -2,50 +2,50 @@
 
 namespace Tourze\AsyncMessengerBundle\DependencyInjection;
 
-use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\Extension\Extension;
-use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
-use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
+use Tourze\SymfonyDependencyServiceLoader\AppendDoctrineConnectionExtension;
 
-class AsyncMessengerExtension extends Extension implements PrependExtensionInterface
+class AsyncMessengerExtension extends AppendDoctrineConnectionExtension
 {
-    public function load(array $configs, ContainerBuilder $container): void
+    protected function getConfigDir(): string
     {
-        $loader = new YamlFileLoader(
-            $container,
-            new FileLocator(__DIR__ . '/../Resources/config')
-        );
-        $loader->load('services.yaml');
+        return __DIR__ . '/../Resources/config';
     }
 
     public function prepend(ContainerBuilder $container): void
     {
+        parent::prepend($container);
+
         // 只有在 framework bundle 存在时才配置
         if (!$container->hasExtension('framework')) {
             return;
         }
 
         // 检查是否应该自动配置（通过环境变量）
-        $autoConfigureEnv = $_ENV['ASYNC_MESSENGER_AUTO_CONFIGURE'] ?? $_SERVER['ASYNC_MESSENGER_AUTO_CONFIGURE'] ?? 'true';
-        if ($autoConfigureEnv === 'false' || $autoConfigureEnv === '0') {
+        $autoConfigureEnv = $_ENV['ASYNC_MESSENGER_AUTO_CONFIGURE'] ?? 'true';
+        if ('false' === $autoConfigureEnv || '0' === $autoConfigureEnv) {
             return;
         }
 
         // 获取现有的 messenger 配置
+        /** @var array<int, array<string, mixed>> $frameworkConfigs */
         $frameworkConfigs = $container->getExtensionConfig('framework');
+        /** @var array<string, mixed> $messengerConfig */
         $messengerConfig = [];
-        
+
         // 查找现有的 messenger 配置
         foreach ($frameworkConfigs as $frameworkConfig) {
-            if (isset($frameworkConfig['messenger'])) {
-                $messengerConfig = $frameworkConfig['messenger'];
+            if (isset($frameworkConfig['messenger']) && is_array($frameworkConfig['messenger'])) {
+                /** @var array<string, mixed> $existingMessengerConfig */
+                $existingMessengerConfig = $frameworkConfig['messenger'];
+                $messengerConfig = $existingMessengerConfig;
                 break;
             }
         }
 
         // 准备我们的 transport 配置 - 非常简单，只需要 DSN
         // TransportFactory 会处理所有的配置细节
+        /** @var array<string, mixed> $transports */
         $transports = [
             'async_doctrine' => 'async-doctrine://',
             'async_redis' => 'async-redis://',
@@ -65,21 +65,29 @@ class AsyncMessengerExtension extends Extension implements PrependExtensionInter
         ];
 
         // 合并 transport 配置，不覆盖已存在的
-        if (!isset($messengerConfig['transports'])) {
+        if (!array_key_exists('transports', $messengerConfig) || !is_array($messengerConfig['transports'])) {
             $messengerConfig['transports'] = [];
         }
-        
+
+        /** @var array<string, mixed> $existingTransports */
+        $existingTransports = $messengerConfig['transports'];
         foreach ($transports as $name => $config) {
             // 任何情况下，都是直接覆盖
-            $messengerConfig['transports'][$name] = $config;
+            $existingTransports[$name] = $config;
         }
+        $messengerConfig['transports'] = $existingTransports;
 
         // 设置默认的 failure_transport
         $messengerConfig['failure_transport'] = 'async_doctrine';
 
         // 将配置添加到 framework
         $container->prependExtensionConfig('framework', [
-            'messenger' => $messengerConfig
+            'messenger' => $messengerConfig,
         ]);
+    }
+
+    protected function getDoctrineConnectionName(): string
+    {
+        return 'async_messenger';
     }
 }

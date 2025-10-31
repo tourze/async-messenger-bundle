@@ -6,9 +6,16 @@ namespace Tourze\AsyncMessengerBundle\Failover;
 
 class CircuitBreaker implements CircuitBreakerInterface
 {
+    /** @var array<string, CircuitBreakerState> */
     private array $states = [];
+
+    /** @var array<string, int> */
     private array $failureCounts = [];
+
+    /** @var array<string, int> */
     private array $successCounts = [];
+
+    /** @var array<string, int> */
     private array $stateChangedTimes = [];
 
     public function __construct(
@@ -16,14 +23,14 @@ class CircuitBreaker implements CircuitBreakerInterface
         private readonly int $successThreshold = 2,
         private readonly int $timeout = 30,
         private readonly float $timeoutMultiplier = 2.0,
-        private readonly int $maxTimeout = 300
+        private readonly int $maxTimeout = 300,
     ) {
     }
 
     public function isAvailable(string $transportName): bool
     {
         $state = $this->getState($transportName);
-        
+
         return match ($state) {
             CircuitBreakerState::CLOSED => true,
             CircuitBreakerState::OPEN => $this->shouldAttemptReset($transportName),
@@ -39,8 +46,9 @@ class CircuitBreaker implements CircuitBreakerInterface
 
         $state = $this->states[$transportName];
 
-        if ($state === CircuitBreakerState::OPEN && $this->shouldAttemptReset($transportName)) {
+        if (CircuitBreakerState::OPEN === $state && $this->shouldAttemptReset($transportName)) {
             $this->transitionTo($transportName, CircuitBreakerState::HALF_OPEN);
+
             return CircuitBreakerState::HALF_OPEN;
         }
 
@@ -64,7 +72,7 @@ class CircuitBreaker implements CircuitBreakerInterface
         $failureCount = $this->failureCounts[$transportName] ?? 0;
         $multiplier = pow($this->timeoutMultiplier, min($failureCount / $this->failureThreshold, 5));
 
-        return min((int)($this->timeout * $multiplier), $this->maxTimeout);
+        return min((int) ($this->timeout * $multiplier), $this->maxTimeout);
     }
 
     private function transitionTo(string $transportName, CircuitBreakerState $newState): void
@@ -77,7 +85,7 @@ class CircuitBreaker implements CircuitBreakerInterface
     {
         $state = $this->getState($transportName);
 
-        if ($state === CircuitBreakerState::HALF_OPEN) {
+        if (CircuitBreakerState::HALF_OPEN === $state) {
             $this->successCounts[$transportName] = ($this->successCounts[$transportName] ?? 0) + 1;
 
             if ($this->successCounts[$transportName] >= $this->successThreshold) {
@@ -99,7 +107,7 @@ class CircuitBreaker implements CircuitBreakerInterface
     {
         $state = $this->getState($transportName);
 
-        if ($state === CircuitBreakerState::HALF_OPEN) {
+        if (CircuitBreakerState::HALF_OPEN === $state) {
             $this->transitionTo($transportName, CircuitBreakerState::OPEN);
             $this->resetCounters($transportName);
         } else {

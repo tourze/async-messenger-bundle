@@ -25,7 +25,9 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
 class RedisTransport implements TransportInterface, SetupableTransportInterface, MessageCountAwareInterface
 {
     private SerializerInterface $serializer;
+
     private RedisReceiver $receiver;
+
     private RedisSender $sender;
 
     public function __construct(
@@ -78,6 +80,11 @@ class RedisTransport implements TransportInterface, SetupableTransportInterface,
     public function getMessageCount(): int
     {
         return $this->getReceiver()->getMessageCount();
+    }
+
+    public function getConnection(): Connection
+    {
+        return $this->connection;
     }
 
     public function close(): void

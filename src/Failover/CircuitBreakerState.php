@@ -18,7 +18,7 @@ enum CircuitBreakerState: string implements Itemable, Labelable, Selectable
     case CLOSED = 'closed';
     case OPEN = 'open';
     case HALF_OPEN = 'half_open';
-    
+
     public function getLabel(): string
     {
         return match ($this) {

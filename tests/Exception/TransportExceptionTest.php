@@ -2,19 +2,23 @@
 
 declare(strict_types=1);
 
-namespace Tourze\AsyncMessengerBundle\Tests\Unit\Exception;
+namespace Tourze\AsyncMessengerBundle\Tests\Exception;
 
-use LogicException;
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
 use Tourze\AsyncMessengerBundle\Exception\TransportException;
+use Tourze\PHPUnitBase\AbstractExceptionTestCase;
 
-class TransportExceptionTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(TransportException::class)]
+final class TransportExceptionTest extends AbstractExceptionTestCase
 {
     public function testExceptionInheritance(): void
     {
         $exception = new TransportException('Test message');
-        
-        $this->assertInstanceOf(LogicException::class, $exception);
+
+        $this->assertInstanceOf(\LogicException::class, $exception);
         $this->assertSame('Test message', $exception->getMessage());
     }
 
@@ -22,7 +26,7 @@ class TransportExceptionTest extends TestCase
     {
         $previous = new \Exception('Previous exception');
         $exception = new TransportException('Test message', 123, $previous);
-        
+
         $this->assertSame('Test message', $exception->getMessage());
         $this->assertSame(123, $exception->getCode());
         $this->assertSame($previous, $exception->getPrevious());

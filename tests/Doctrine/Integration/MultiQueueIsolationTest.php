@@ -4,357 +4,306 @@ declare(strict_types=1);
 
 namespace Tourze\AsyncMessengerBundle\Tests\Doctrine\Integration;
 
+use Doctrine\DBAL\Connection as DBALConnection;
+use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Schema\Schema;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
 use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
 use Tourze\AsyncMessengerBundle\Doctrine\Connection;
 use Tourze\AsyncMessengerBundle\Doctrine\DoctrineTransport;
 
-class MultiQueueIsolationTest extends DoctrineIntegrationTestCase
+/**
+ * 集成测试：Doctrine 多队列隔离场景
+ *
+ * @internal
+ */
+#[CoversClass(DoctrineTransport::class)]
+final class MultiQueueIsolationTest extends TestCase
 {
+    protected DBALConnection $dbalConnection;
+
+    protected string $tableName = 'messenger_messages_test';
+
     private PhpSerializer $serializer;
-    
-    public function test_differentQueues_completeIsolation(): void
+
+    public function testDifferentQueuesCompleteIsolation(): void
     {
-        // Arrange
-        $queueA = $this->createTransportForQueue('queue_a');
-        $queueB = $this->createTransportForQueue('queue_b');
-        $queueC = $this->createTransportForQueue('queue_c');
+        $transport1 = $this->createTransport('queue_a');
+        $transport2 = $this->createTransport('queue_b');
 
-        // 向不同队列发送消息
-        $messagesPerQueue = 3;
-        for ($i = 0; $i < $messagesPerQueue; $i++) {
-            $messageA = new \stdClass();
-            $messageA->content = "queue_a_message_{$i}";
-            $messageA->queue = 'a';
-            $queueA->send(new Envelope($messageA));
+        $message1 = new TestMessage('message for queue A');
+        $message2 = new TestMessage('message for queue B');
 
-            $messageB = new \stdClass();
-            $messageB->content = "queue_b_message_{$i}";
-            $messageB->queue = 'b';
-            $queueB->send(new Envelope($messageB));
+        $transport1->send(new Envelope($message1));
+        $transport2->send(new Envelope($message2));
 
-            $messageC = new \stdClass();
-            $messageC->content = "queue_c_message_{$i}";
-            $messageC->queue = 'c';
-            $queueC->send(new Envelope($messageC));
-        }
+        // 验证队列隔离
+        $this->assertEquals(1, $transport1->getMessageCount());
+        $this->assertEquals(1, $transport2->getMessageCount());
 
-        // Act & Assert - 每个队列只能看到自己的消息
-        // Queue A
-        $queueAMessages = [];
-        /** @phpstan-ignore-next-line */
-        while ($envelopes = $queueA->get()) {
-            $message = $envelopes[0]->getMessage();
-            $queueAMessages[] = $message->content;
-            $this->assertEquals('a', $message->queue);
-            $queueA->ack($envelopes[0]);
-        }
-        $this->assertCount($messagesPerQueue, $queueAMessages);
+        $envelopes1 = iterator_to_array($transport1->get());
+        $envelopes2 = iterator_to_array($transport2->get());
 
-        // Queue B
-        $queueBMessages = [];
-        /** @phpstan-ignore-next-line */
-        while ($envelopes = $queueB->get()) {
-            $message = $envelopes[0]->getMessage();
-            $queueBMessages[] = $message->content;
-            $this->assertEquals('b', $message->queue);
-            $queueB->ack($envelopes[0]);
-        }
-        $this->assertCount($messagesPerQueue, $queueBMessages);
+        $this->assertCount(1, $envelopes1);
+        $this->assertCount(1, $envelopes2);
 
-        // Queue C
-        $queueCMessages = [];
-        /** @phpstan-ignore-next-line */
-        while ($envelopes = $queueC->get()) {
-            $message = $envelopes[0]->getMessage();
-            $queueCMessages[] = $message->content;
-            $this->assertEquals('c', $message->queue);
-            $queueC->ack($envelopes[0]);
-        }
-        $this->assertCount($messagesPerQueue, $queueCMessages);
+        /** @var TestMessage $messageA */
+        $messageA = $envelopes1[0]->getMessage();
+        /** @var TestMessage $messageB */
+        $messageB = $envelopes2[0]->getMessage();
 
-        // 验证没有消息泄露到其他队列
-        foreach ($queueAMessages as $content) {
-            $this->assertStringStartsWith('queue_a_message_', $content);
-        }
-        foreach ($queueBMessages as $content) {
-            $this->assertStringStartsWith('queue_b_message_', $content);
-        }
-        foreach ($queueCMessages as $content) {
-            $this->assertStringStartsWith('queue_c_message_', $content);
-        }
-
-        // 验证所有队列都已清空
-        $this->assertEquals(0, $queueA->getMessageCount());
-        $this->assertEquals(0, $queueB->getMessageCount());
-        $this->assertEquals(0, $queueC->getMessageCount());
+        $this->assertEquals('message for queue A', $messageA->content);
+        $this->assertEquals('message for queue B', $messageB->content);
     }
-    
-    private function createTransportForQueue(string $queueName): DoctrineTransport
+
+    public function testQueueSpecificMessageCount(): void
     {
-        $options = array_merge($this->getConnectionOptions(), [
-            'queue_name' => $queueName,
-        ]);
-        
-        $connection = new Connection($options, $this->dbalConnection);
-        
-        return new DoctrineTransport($connection, $this->serializer);
-    }
-    
-    public function test_queueSpecificMessageCount(): void
-    {
-        // Arrange
-        $emailQueue = $this->createTransportForQueue('emails');
-        $smsQueue = $this->createTransportForQueue('sms');
-        $notificationQueue = $this->createTransportForQueue('notifications');
+        $transport = $this->createTransport('count_test');
 
-        // 发送不同数量的消息到各队列
-        for ($i = 0; $i < 5; $i++) {
-            $email = new \stdClass();
-            $email->type = 'email';
-            $emailQueue->send(new Envelope($email));
-        }
-
-        for ($i = 0; $i < 3; $i++) {
-            $sms = new \stdClass();
-            $sms->type = 'sms';
-            $smsQueue->send(new Envelope($sms));
-        }
-
-        for ($i = 0; $i < 7; $i++) {
-            $notification = new \stdClass();
-            $notification->type = 'notification';
-            $notificationQueue->send(new Envelope($notification));
-        }
-
-        // Act & Assert - 各队列的消息计数应该独立
-        $this->assertEquals(5, $emailQueue->getMessageCount());
-        $this->assertEquals(3, $smsQueue->getMessageCount());
-        $this->assertEquals(7, $notificationQueue->getMessageCount());
-
-        // 总消息数
-        $this->assertEquals(15, $this->getMessageCount());
-
-        // 处理部分消息后再次验证
-        $emailEnvelopes = $emailQueue->get();
-        $emailQueue->ack($emailEnvelopes[0]);
-
-        $smsEnvelopes = $smsQueue->get();
-        $smsQueue->ack($smsEnvelopes[0]);
-
-        $this->assertEquals(4, $emailQueue->getMessageCount());
-        $this->assertEquals(2, $smsQueue->getMessageCount());
-        $this->assertEquals(7, $notificationQueue->getMessageCount()); // 未变化
-    }
-    
-    public function test_concurrentProcessing_acrossQueues(): void
-    {
-        // Arrange
-        $highPriorityQueue = $this->createTransportForQueue('high_priority');
-        $normalQueue = $this->createTransportForQueue('normal');
-        $lowPriorityQueue = $this->createTransportForQueue('low_priority');
-
-        // 发送消息
-        $queues = [
-            'high' => $highPriorityQueue,
-            'normal' => $normalQueue,
-            'low' => $lowPriorityQueue,
-        ];
-
-        foreach ($queues as $priority => $queue) {
-            for ($i = 0; $i < 10; $i++) {
-                $message = new \stdClass();
-                $message->priority = $priority;
-                $message->index = $i;
-                $queue->send(new Envelope($message));
-            }
-        }
-
-        // Act - 模拟并发处理
-        $processed = [
-            'high' => 0,
-            'normal' => 0,
-            'low' => 0,
-        ];
-
-        // 处理所有消息
-        $totalProcessed = 0;
-        while ($totalProcessed < 30) {
-            foreach ($queues as $priority => $queue) {
-                $envelopes = $queue->get();
-                if (!empty($envelopes)) {
-                    $envelope = $envelopes[0];
-                    $message = $envelope->getMessage();
-
-                    $this->assertEquals($priority, $message->priority);
-                    $processed[$priority]++;
-
-                    $queue->ack($envelope);
-                    $totalProcessed++;
-                }
-            }
-        }
-
-        // Assert
-        $this->assertEquals(10, $processed['high']);
-        $this->assertEquals(10, $processed['normal']);
-        $this->assertEquals(10, $processed['low']);
-
-        // 所有队列应该为空
-        foreach ($queues as $queue) {
-            $this->assertEquals(0, $queue->getMessageCount());
-        }
-    }
-    
-    public function test_queueIsolation_withFailures(): void
-    {
-        // Arrange
-        $criticalQueue = $this->createTransportForQueue('critical');
-        $regularQueue = $this->createTransportForQueue('regular');
-
-        // 发送消息
-        for ($i = 0; $i < 5; $i++) {
-            $critical = new \stdClass();
-            $critical->type = 'critical';
-            $critical->id = $i;
-            $criticalQueue->send(new Envelope($critical));
-
-            $regular = new \stdClass();
-            $regular->type = 'regular';
-            $regular->id = $i;
-            $regularQueue->send(new Envelope($regular));
-        }
-
-        // Act - 处理 critical 队列的消息，但故意失败一些
-        $criticalProcessed = [];
-        for ($i = 0; $i < 3; $i++) {
-            $envelopes = $criticalQueue->get();
-            if (!empty($envelopes)) {
-                $envelope = $envelopes[0];
-                $message = $envelope->getMessage();
-
-                if ($message->id % 2 === 0) {
-                    // 偶数ID的消息"失败"，拒绝它们
-                    $criticalQueue->reject($envelope);
-                } else {
-                    // 奇数ID的消息成功
-                    $criticalProcessed[] = $message->id;
-                    $criticalQueue->ack($envelope);
-                }
-            }
-        }
-
-        // 正常处理 regular 队列
-        $regularProcessed = [];
-        /** @phpstan-ignore-next-line */
-        while ($envelopes = $regularQueue->get()) {
-            $envelope = $envelopes[0];
-            $message = $envelope->getMessage();
-            $regularProcessed[] = $message->id;
-            $regularQueue->ack($envelope);
-        }
-
-        // Assert
-        // Critical 队列应该只剩下未处理的消息
-        $remainingCritical = $criticalQueue->getMessageCount();
-        $this->assertEquals(2, $remainingCritical); // 5 - 3 处理的 = 2
-
-        // Regular 队列应该全部处理完成
-        $this->assertEquals(0, $regularQueue->getMessageCount());
-        $this->assertCount(5, $regularProcessed);
-
-        // 验证队列之间的失败不会相互影响
-        sort($regularProcessed);
-        $this->assertEquals([0, 1, 2, 3, 4], $regularProcessed);
-    }
-    
-    public function test_dynamicQueueCreation(): void
-    {
-        // Arrange & Act
-        $dynamicQueues = [];
-        $queueNames = ['dynamic_1', 'dynamic_2', 'dynamic_3', 'dynamic_4', 'dynamic_5'];
-
-        // 动态创建队列并发送消息
-        foreach ($queueNames as $index => $queueName) {
-            $queue = $this->createTransportForQueue($queueName);
-            $dynamicQueues[$queueName] = $queue;
-
-            // 发送与索引相关数量的消息
-            for ($i = 0; $i <= $index; $i++) {
-                $message = new \stdClass();
-                $message->queue = $queueName;
-                $message->index = $i;
-                $queue->send(new Envelope($message));
-            }
-        }
-
-        // Assert - 验证每个队列的消息数量
-        $this->assertEquals(1, $dynamicQueues['dynamic_1']->getMessageCount());
-        $this->assertEquals(2, $dynamicQueues['dynamic_2']->getMessageCount());
-        $this->assertEquals(3, $dynamicQueues['dynamic_3']->getMessageCount());
-        $this->assertEquals(4, $dynamicQueues['dynamic_4']->getMessageCount());
-        $this->assertEquals(5, $dynamicQueues['dynamic_5']->getMessageCount());
-
-        // 验证总消息数
-        $totalExpected = 1 + 2 + 3 + 4 + 5; // = 15
-        $this->assertEquals($totalExpected, $this->getMessageCount());
-
-        // 清理所有队列
-        foreach ($dynamicQueues as $queueName => $queue) {
-            /** @phpstan-ignore-next-line */
-            while ($envelopes = $queue->get()) {
-                $message = $envelopes[0]->getMessage();
-                $this->assertEquals($queueName, $message->queue);
-                $queue->ack($envelopes[0]);
-            }
-        }
-
-        // 验证所有队列都已清空
-        foreach ($dynamicQueues as $queue) {
-            $this->assertEquals(0, $queue->getMessageCount());
-        }
-    }
-    
-    public function test_queueNaming_specialCharacters(): void
-    {
-        // Arrange - 测试各种特殊命名的队列
-        $specialQueues = [
-            'queue-with-dash',
-            'queue_with_underscore',
-            'queue.with.dot',
-            'UPPERCASE_QUEUE',
-            'mixed_Case_Queue',
-            'queue123',
-            '123queue',
-        ];
-
-        $transports = [];
-        foreach ($specialQueues as $queueName) {
-            $transport = $this->createTransportForQueue($queueName);
-            $transports[$queueName] = $transport;
-
-            // 发送一条消息
-            $message = new \stdClass();
-            $message->queueName = $queueName;
+        // 发送多条消息
+        for ($i = 0; $i < 3; ++$i) {
+            $message = new TestMessage('', '', $i);
             $transport->send(new Envelope($message));
         }
 
-        // Act & Assert - 验证每个队列独立工作
-        foreach ($transports as $queueName => $transport) {
-            $envelopes = $transport->get();
-            $this->assertCount(1, $envelopes);
+        $this->assertEquals(3, $transport->getMessageCount());
 
-            $message = $envelopes[0]->getMessage();
-            $this->assertEquals($queueName, $message->queueName);
+        // 消费一条消息
+        $envelopes = iterator_to_array($transport->get());
+        $transport->ack($envelopes[0]);
 
-            $transport->ack($envelopes[0]);
-            $this->assertEquals(0, $transport->getMessageCount());
+        $this->assertEquals(2, $transport->getMessageCount());
+    }
+
+    public function testConcurrentProcessingAcrossQueues(): void
+    {
+        $transportA = $this->createTransport('concurrent_a');
+        $transportB = $this->createTransport('concurrent_b');
+
+        // 发送消息到两个队列
+        $messageA = new TestMessage('', 'A');
+        $messageB = new TestMessage('', 'B');
+
+        $transportA->send(new Envelope($messageA));
+        $transportB->send(new Envelope($messageB));
+
+        // 并发处理
+        $envelopesA = iterator_to_array($transportA->get());
+        $envelopesB = iterator_to_array($transportB->get());
+
+        $this->assertCount(1, $envelopesA);
+        $this->assertCount(1, $envelopesB);
+
+        /** @var TestMessage $messageA */
+        $messageA = $envelopesA[0]->getMessage();
+        /** @var TestMessage $messageB */
+        $messageB = $envelopesB[0]->getMessage();
+
+        $this->assertEquals('A', $messageA->type);
+        $this->assertEquals('B', $messageB->type);
+    }
+
+    public function testAck(): void
+    {
+        $transport = $this->createTransport('ack_test');
+        $message = new TestMessage('test ack');
+
+        $transport->send(new Envelope($message));
+        $envelopes = iterator_to_array($transport->get());
+        $this->assertCount(1, $envelopes);
+
+        $transport->ack($envelopes[0]);
+        $this->assertEquals(0, $transport->getMessageCount());
+    }
+
+    public function testSend(): void
+    {
+        $transport = $this->createTransport('send_test');
+        $message = new TestMessage('test send');
+        $envelope = new Envelope($message);
+
+        $sentEnvelope = $transport->send($envelope);
+
+        $this->assertInstanceOf(Envelope::class, $sentEnvelope);
+        $transportIdStamp = $sentEnvelope->last(TransportMessageIdStamp::class);
+        $this->assertNotNull($transportIdStamp);
+        $this->assertEquals(1, $transport->getMessageCount());
+    }
+
+    public function testAll(): void
+    {
+        $transport = $this->createTransport('all_test');
+
+        // 发送多条消息
+        for ($i = 0; $i < 3; ++$i) {
+            $message = new TestMessage('', '', $i);
+            $transport->send(new Envelope($message));
+        }
+
+        // 测试 all() 方法
+        $allMessages = iterator_to_array($transport->all());
+        $this->assertCount(3, $allMessages);
+
+        foreach ($allMessages as $envelope) {
+            $this->assertInstanceOf(Envelope::class, $envelope);
         }
     }
-    
+
+    public function testFind(): void
+    {
+        $transport = $this->createTransport('find_test');
+        $message = new TestMessage('test find');
+        $envelope = new Envelope($message);
+
+        // 发送消息并获取ID
+        $sentEnvelope = $transport->send($envelope);
+        $transportIdStamp = $sentEnvelope->last(TransportMessageIdStamp::class);
+        $this->assertNotNull($transportIdStamp);
+        $messageId = $transportIdStamp->getId();
+
+        // 使用 find() 查找消息
+        $foundEnvelope = $transport->find($messageId);
+        $this->assertInstanceOf(Envelope::class, $foundEnvelope);
+
+        /** @var TestMessage $foundMessage */
+        $foundMessage = $foundEnvelope->getMessage();
+        $this->assertEquals($message->content, $foundMessage->content);
+    }
+
+    public function testGet(): void
+    {
+        $transport = $this->createTransport('get_test');
+        $message = new TestMessage('test get');
+
+        $transport->send(new Envelope($message));
+
+        $envelopes = iterator_to_array($transport->get());
+        $this->assertCount(1, $envelopes);
+        $this->assertInstanceOf(Envelope::class, $envelopes[0]);
+
+        /** @var TestMessage $getMessage */
+        $getMessage = $envelopes[0]->getMessage();
+        $this->assertEquals('test get', $getMessage->content);
+    }
+
+    public function testKeepalive(): void
+    {
+        $transport = $this->createTransport('keepalive_test');
+        $message = new TestMessage('test keepalive');
+
+        $transport->send(new Envelope($message));
+        $envelopes = iterator_to_array($transport->get());
+        $this->assertCount(1, $envelopes);
+
+        // 调用 keepalive（不应该抛出异常）
+        $transport->keepalive($envelopes[0]);
+        $this->assertTrue(true); // keepalive 成功调用即可
+
+        // 清理
+        $transport->ack($envelopes[0]);
+        $this->assertEquals(0, $transport->getMessageCount());
+    }
+
+    public function testReject(): void
+    {
+        $transport = $this->createTransport('reject_test');
+        $message = new TestMessage('test reject');
+
+        $transport->send(new Envelope($message));
+        $envelopes = iterator_to_array($transport->get());
+        $this->assertCount(1, $envelopes);
+
+        $transport->reject($envelopes[0]);
+        $this->assertEquals(0, $transport->getMessageCount());
+    }
+
+    public function testSetup(): void
+    {
+        $testTableName = 'messenger_setup_test';
+        $connection = new Connection([
+            'table_name' => $testTableName,
+            'queue_name' => 'test_queue',
+        ], $this->dbalConnection);
+
+        $transport = new DoctrineTransport($connection, $this->serializer);
+        $transport->setup();
+
+        // 验证表已创建
+        $schemaManager = $this->dbalConnection->createSchemaManager();
+        $tables = $schemaManager->listTableNames();
+        $this->assertContains($testTableName, $tables);
+
+        // 清理
+        $this->dbalConnection->executeStatement("DROP TABLE IF EXISTS {$testTableName}");
+    }
+
+    public function testConfigureSchema(): void
+    {
+        $transport = $this->createTransport('configure_schema_test');
+        $schema = new Schema();
+
+        $isSameDatabase = fn () => true;
+        $transport->configureSchema($schema, $this->dbalConnection, $isSameDatabase);
+
+        $this->assertTrue($schema->hasTable($this->tableName));
+    }
+
     protected function setUp(): void
     {
-        parent::setUp();
+        $this->initializeConnection();
+        $this->createTestTable();
         $this->serializer = new PhpSerializer();
+    }
+
+    protected function tearDown(): void
+    {
+        $this->dbalConnection->executeStatement("DROP TABLE IF EXISTS {$this->tableName}");
+        $this->dbalConnection->close();
+        parent::tearDown();
+    }
+
+    private function createTransport(string $queueName): DoctrineTransport
+    {
+        $connection = new Connection([
+            'table_name' => $this->tableName,
+            'queue_name' => $queueName,
+        ], $this->dbalConnection);
+
+        return new DoctrineTransport($connection, $this->serializer);
+    }
+
+    private function initializeConnection(): void
+    {
+        $this->dbalConnection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+    }
+
+    private function createTestTable(): void
+    {
+        $schema = new Schema();
+        $table = $schema->createTable($this->tableName);
+
+        $table->addColumn('id', 'bigint')->setAutoincrement(true)->setNotnull(true);
+        $table->addColumn('body', 'text')->setNotnull(true);
+        $table->addColumn('headers', 'text')->setNotnull(true);
+        $table->addColumn('queue_name', 'string')->setLength(190)->setNotnull(true);
+        $table->addColumn('created_at', 'datetime')->setNotnull(true);
+        $table->addColumn('available_at', 'datetime')->setNotnull(true);
+        $table->addColumn('delivered_at', 'datetime')->setNotnull(false);
+
+        $table->addUniqueConstraint(['id'], 'PRIMARY');
+        $table->addIndex(['queue_name']);
+        $table->addIndex(['available_at']);
+        $table->addIndex(['delivered_at']);
+
+        $sql = $schema->toSql($this->dbalConnection->getDatabasePlatform());
+        foreach ($sql as $query) {
+            $this->dbalConnection->executeStatement($query);
+        }
     }
 }

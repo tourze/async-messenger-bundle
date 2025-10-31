@@ -29,17 +29,28 @@ class RedisTransportFactory implements TransportFactoryInterface
 {
     public function __construct(
         private readonly \Redis $redis,
-    )
-    {
+    ) {
     }
 
+    /**
+     * @param array<mixed, mixed> $options
+     */
     public function createTransport(#[\SensitiveParameter] string $dsn, array $options, SerializerInterface $serializer): TransportInterface
     {
         unset($options['transport_name']);
 
-        return new RedisTransport(new Connection($this->redis, $options), $serializer);
+        // 确保选项数组的键都是字符串
+        $stringKeyOptions = [];
+        foreach ($options as $key => $value) {
+            $stringKeyOptions[(string) $key] = $value;
+        }
+
+        return new RedisTransport(new Connection($this->redis, $stringKeyOptions), $serializer);
     }
 
+    /**
+     * @param array<mixed> $options
+     */
     public function supports(#[\SensitiveParameter] string $dsn, array $options): bool
     {
         return str_starts_with($dsn, 'async-redis://');

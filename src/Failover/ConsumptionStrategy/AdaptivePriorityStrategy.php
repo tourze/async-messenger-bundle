@@ -9,49 +9,67 @@ use Tourze\AsyncMessengerBundle\Failover\ConsumptionStrategyInterface;
 
 class AdaptivePriorityStrategy implements ConsumptionStrategyInterface
 {
+    /** @var array<string, float> */
     private array $performanceScores = [];
+
+    /** @var array<string, array<array<string, mixed>>> */
     private array $recentLatencies = [];
+
+    /** @var array<string, int> */
     private array $lastUsed = [];
+
     private readonly int $windowSize;
+
     private readonly float $latencyWeight;
+
     private readonly float $successWeight;
-    
+
+    /**
+     * @param array<string, mixed> $options
+     */
     public function __construct(
-        array $options = []
+        array $options = [],
     ) {
-        $this->windowSize = $options['window_size'] ?? 10;
-        $this->latencyWeight = $options['latency_weight'] ?? 0.7;
-        $this->successWeight = $options['success_weight'] ?? 0.3;
+        $windowSizeValue = $options['window_size'] ?? 10;
+        $this->windowSize = is_numeric($windowSizeValue) ? (int) $windowSizeValue : 10;
+        $latencyWeightValue = $options['latency_weight'] ?? 0.7;
+        $this->latencyWeight = is_numeric($latencyWeightValue) ? (float) $latencyWeightValue : 0.7;
+        $successWeightValue = $options['success_weight'] ?? 0.3;
+        $this->successWeight = is_numeric($successWeightValue) ? (float) $successWeightValue : 0.3;
     }
 
+    /**
+     * @param array<string, mixed> $transports
+     */
     public function selectTransport(array $transports, CircuitBreakerInterface $circuitBreaker): ?string
     {
+        /** @var array<string> $availableTransports */
         $availableTransports = [];
-        
+
         foreach (array_keys($transports) as $name) {
             if ($circuitBreaker->isAvailable($name)) {
                 $availableTransports[] = $name;
             }
         }
-        
-        if (empty($availableTransports)) {
+
+        if (0 === count($availableTransports)) {
             return null;
         }
-        
+
         // Sort by priority score
         usort($availableTransports, function ($a, $b) {
             return $this->getScore($b) <=> $this->getScore($a);
         });
-        
+
         // Select based on priority but with some randomization to avoid starvation
         $topCount = min(3, count($availableTransports));
         $topTransports = array_slice($availableTransports, 0, $topCount);
-        
+
         // Weighted random selection from top transports
         $selected = $this->weightedRandomSelect($topTransports);
-        
+
         $this->lastUsed[$selected] = time();
-        
+
         return $selected;
     }
 
@@ -60,12 +78,16 @@ class AdaptivePriorityStrategy implements ConsumptionStrategyInterface
         return $this->performanceScores[$transportName] ?? 50.0;
     }
 
+    /**
+     * @param array<string> $transports
+     */
     private function weightedRandomSelect(array $transports): string
     {
-        if (count($transports) === 1) {
+        if (1 === count($transports)) {
             return $transports[0];
         }
 
+        /** @var array<string, float> $weights */
         $weights = [];
         $totalWeight = 0;
 
@@ -75,7 +97,7 @@ class AdaptivePriorityStrategy implements ConsumptionStrategyInterface
             $totalWeight += $weight;
         }
 
-        $random = mt_rand(0, (int)$totalWeight - 1);
+        $random = mt_rand(0, (int) $totalWeight - 1);
         $current = 0;
 
         foreach ($weights as $transport => $weight) {
@@ -98,7 +120,7 @@ class AdaptivePriorityStrategy implements ConsumptionStrategyInterface
         $this->recentLatencies[$transportName][] = [
             'latency' => $latency,
             'success' => $success,
-            'timestamp' => microtime(true)
+            'timestamp' => microtime(true),
         ];
 
         // Keep only recent entries
@@ -112,8 +134,9 @@ class AdaptivePriorityStrategy implements ConsumptionStrategyInterface
 
     private function updatePerformanceScore(string $transportName): void
     {
-        if (!isset($this->recentLatencies[$transportName]) || empty($this->recentLatencies[$transportName])) {
+        if (!isset($this->recentLatencies[$transportName]) || 0 === count($this->recentLatencies[$transportName])) {
             $this->performanceScores[$transportName] = 50.0;
+
             return;
         }
 
@@ -124,9 +147,12 @@ class AdaptivePriorityStrategy implements ConsumptionStrategyInterface
         $successCount = 0;
 
         foreach ($data as $entry) {
-            $totalLatency += $entry['latency'];
-            if ($entry['success']) {
-                $successCount++;
+            $latencyValue = $entry['latency'] ?? 0;
+            $latency = is_numeric($latencyValue) ? (float) $latencyValue : 0.0;
+            $success = $entry['success'] ?? false;
+            $totalLatency += $latency;
+            if (is_bool($success) && $success) {
+                ++$successCount;
             }
         }
 

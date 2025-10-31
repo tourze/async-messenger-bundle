@@ -10,6 +10,5 @@ services:
   Tourze\AsyncMessengerBundle\Doctrine\DoctrineTransportFactory: ~
   Tourze\AsyncMessengerBundle\Redis\RedisTransportFactory: ~
   
-  Tourze\AsyncMessengerBundle\Failover\FailoverTransportFactory:
-    arguments:
-      $factories: !tagged_iterator 'messenger.transport_factory'
+  # FailoverTransportFactory is now configured using attributes
+  Tourze\AsyncMessengerBundle\Failover\FailoverTransportFactory: ~

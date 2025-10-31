@@ -2,18 +2,24 @@
 
 namespace Tourze\AsyncMessengerBundle\Tests\DependencyInjection;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Tourze\AsyncContracts\AsyncMessageInterface;
 use Tourze\AsyncMessengerBundle\DependencyInjection\RemoveUnusedServicePass;
 
-class RemoveUnusedServicePassTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(RemoveUnusedServicePass::class)]
+final class RemoveUnusedServicePassTest extends TestCase
 {
     private ContainerBuilder $container;
+
     private RemoveUnusedServicePass $compilerPass;
 
-    public function test_process_removesAsyncMessageServices(): void
+    public function testProcessRemovesAsyncMessageServices(): void
     {
         // 创建一个实现 AsyncMessageInterface 的测试类
         $testAsyncMessageClass = new class implements AsyncMessageInterface {};
@@ -33,7 +39,7 @@ class RemoveUnusedServicePassTest extends TestCase
         $this->assertFalse($this->container->hasDefinition('test.async.message'));
     }
 
-    public function test_process_keepsNonAsyncMessageServices(): void
+    public function testProcessKeepsNonAsyncMessageServices(): void
     {
         // 创建一个普通类
         $testClass = new class {};
@@ -53,7 +59,7 @@ class RemoveUnusedServicePassTest extends TestCase
         $this->assertTrue($this->container->hasDefinition('test.normal.service'));
     }
 
-    public function test_process_handlesEmptyClassDefinition(): void
+    public function testProcessHandlesEmptyClassDefinition(): void
     {
         // 添加没有类名的服务定义
         $definition = new Definition();
@@ -69,7 +75,7 @@ class RemoveUnusedServicePassTest extends TestCase
         $this->assertTrue($this->container->hasDefinition('test.empty.service'));
     }
 
-    public function test_process_handlesNonExistentClass(): void
+    public function testProcessHandlesNonExistentClass(): void
     {
         // 添加不存在的类的服务定义
         $definition = new Definition('NonExistentClass');
@@ -87,6 +93,7 @@ class RemoveUnusedServicePassTest extends TestCase
 
     protected function setUp(): void
     {
+        parent::setUp();
         $this->container = new ContainerBuilder();
         $this->compilerPass = new RemoveUnusedServicePass();
     }

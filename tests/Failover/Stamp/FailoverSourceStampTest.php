@@ -4,22 +4,27 @@ declare(strict_types=1);
 
 namespace Tourze\AsyncMessengerBundle\Tests\Failover\Stamp;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Tourze\AsyncMessengerBundle\Failover\Stamp\FailoverSourceStamp;
 
+/**
+ * @internal
+ */
+#[CoversClass(FailoverSourceStamp::class)]
 final class FailoverSourceStampTest extends TestCase
 {
     public function testGetTransportName(): void
     {
         $stamp = new FailoverSourceStamp('primary_transport');
-        
+
         self::assertEquals('primary_transport', $stamp->getTransportName());
     }
 
     public function testGetTransportNameWithEmptyString(): void
     {
         $stamp = new FailoverSourceStamp('');
-        
+
         self::assertEquals('', $stamp->getTransportName());
     }
 
@@ -27,7 +32,7 @@ final class FailoverSourceStampTest extends TestCase
     {
         $transportName = 'transport_@#$%_123';
         $stamp = new FailoverSourceStamp($transportName);
-        
+
         self::assertEquals($transportName, $stamp->getTransportName());
     }
 
@@ -36,7 +41,7 @@ final class FailoverSourceStampTest extends TestCase
         $transportName = 'test_transport';
         $stamp1 = new FailoverSourceStamp($transportName);
         $stamp2 = new FailoverSourceStamp($transportName);
-        
+
         self::assertNotSame($stamp1, $stamp2);
         self::assertEquals($stamp1->getTransportName(), $stamp2->getTransportName());
     }
@@ -45,7 +50,13 @@ final class FailoverSourceStampTest extends TestCase
     {
         $stamp1 = new FailoverSourceStamp('transport1');
         $stamp2 = new FailoverSourceStamp('transport2');
-        
+
         self::assertNotEquals($stamp1->getTransportName(), $stamp2->getTransportName());
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // 这个测试类不需要特殊的设置
     }
 }

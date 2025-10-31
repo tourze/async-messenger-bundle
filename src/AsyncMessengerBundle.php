@@ -3,12 +3,10 @@
 namespace Tourze\AsyncMessengerBundle;
 
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
-use Snc\RedisBundle\SncRedisBundle;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 use Tourze\AsyncMessengerBundle\DependencyInjection\RemoveUnusedServicePass;
 use Tourze\BundleDependency\BundleDependencyInterface;
-use Tourze\DoctrineDedicatedConnectionBundle\DoctrineDedicatedConnectionBundle;
 use Tourze\RedisDedicatedConnectionBundle\RedisDedicatedConnectionBundle;
 
 class AsyncMessengerBundle extends Bundle implements BundleDependencyInterface
@@ -19,12 +17,13 @@ class AsyncMessengerBundle extends Bundle implements BundleDependencyInterface
         $container->addCompilerPass(new RemoveUnusedServicePass());
     }
 
+    /**
+     * @return array<class-string<Bundle>, array<string, bool>>
+     */
     public static function getBundleDependencies(): array
     {
         return [
             DoctrineBundle::class => ['all' => true],
-            SncRedisBundle::class => ['all' => true],
-            DoctrineDedicatedConnectionBundle::class => ['all' => true],
             RedisDedicatedConnectionBundle::class => ['all' => true],
         ];
     }

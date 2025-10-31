@@ -13,6 +13,7 @@ namespace Tourze\AsyncMessengerBundle\Doctrine;
 
 use Doctrine\DBAL\Exception as DBALException;
 use Doctrine\DBAL\Exception\RetryableException;
+use LogicException as BaseLogicException;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\LogicException;
 use Symfony\Component\Messenger\Exception\MessageDecodingFailedException;
@@ -30,7 +31,9 @@ use Tourze\AsyncMessengerBundle\Stamp\DoctrineReceivedStamp;
 class DoctrineReceiver implements ListableReceiverInterface, MessageCountAwareInterface
 {
     private const MAX_RETRIES = 3;
+
     private int $retryingSafetyCounter = 0;
+
     private SerializerInterface $serializer;
 
     public function __construct(
@@ -57,6 +60,11 @@ class DoctrineReceiver implements ListableReceiverInterface, MessageCountAwareIn
             return [];
         } catch (DBALException $exception) {
             throw new TransportException($exception->getMessage(), 0, $exception);
+        } catch (\Exception $exception) {
+            if ($exception instanceof LogicException || $exception instanceof BaseLogicException) {
+                throw $exception;
+            }
+            throw new TransportException($exception->getMessage(), 0, $exception);
         }
 
         if (null === $doctrineEnvelope) {
@@ -66,6 +74,9 @@ class DoctrineReceiver implements ListableReceiverInterface, MessageCountAwareIn
         return [$this->createEnvelopeFromData($doctrineEnvelope)];
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     private function createEnvelopeFromData(array $data): Envelope
     {
         try {
@@ -74,59 +85,97 @@ class DoctrineReceiver implements ListableReceiverInterface, MessageCountAwareIn
                 'headers' => $data['headers'],
             ]);
         } catch (MessageDecodingFailedException $exception) {
-            $this->connection->reject($data['id']);
+            $messageIdValue = $data['id'] ?? '';
+            $messageId = is_scalar($messageIdValue) ? (string) $messageIdValue : '';
+            $this->connection->reject($messageId);
 
             throw $exception;
         }
 
+        $messageIdValue = $data['id'] ?? '';
+        $messageId = is_scalar($messageIdValue) ? (string) $messageIdValue : '';
+
         return $envelope
             ->withoutAll(TransportMessageIdStamp::class)
             ->with(
-                new DoctrineReceivedStamp($data['id']),
-                new TransportMessageIdStamp($data['id'])
-            );
+                new DoctrineReceivedStamp($messageId),
+                new TransportMessageIdStamp($messageId)
+            )
+        ;
     }
 
     public function reject(Envelope $envelope): void
     {
-        $this->withRetryableExceptionRetry(function () use ($envelope) {
+        $this->withRetryableExceptionRetry(function () use ($envelope): void {
             $this->connection->reject($this->findDoctrineReceivedStamp($envelope)->getId());
         });
     }
 
     private function withRetryableExceptionRetry(callable $callable): void
     {
-        $delay = 100;
-        $multiplier = 2;
-        $jitter = 0.1;
-        $retries = 0;
+        $retryState = $this->initializeRetryState();
 
-        retry:
-        try {
-            $callable();
-        } catch (RetryableException $exception) {
-            /** @phpstan-ignore-next-line smallerOrEqual.alwaysTrue */
-            if (++$retries <= self::MAX_RETRIES) {
-                $delay *= $multiplier;
+        while (true) {
+            try {
+                $callable();
 
-                $randomness = (int) ($delay * $jitter);
-                $delay += random_int(-$randomness, +$randomness);
-
-                usleep($delay * 1000);
-
-                goto retry;
+                return; // 成功执行，退出
+            } catch (RetryableException $exception) {
+                $retryState = $this->handleRetryableException($exception, $retryState);
+            } catch (DBALException $exception) {
+                throw new TransportException($exception->getMessage(), 0, $exception);
+            } catch (\Exception $exception) {
+                $this->handleGeneralException($exception);
             }
+        }
+    }
 
-            throw new TransportException($exception->getMessage(), 0, $exception);
-        } catch (DBALException $exception) {
+    /**
+     * @return array{delay: int, multiplier: int, jitter: float, retries: int, maxRetries: int}
+     */
+    private function initializeRetryState(): array
+    {
+        return [
+            'delay' => 100,
+            'multiplier' => 2,
+            'jitter' => 0.1,
+            'retries' => 0,
+            'maxRetries' => self::MAX_RETRIES,
+        ];
+    }
+
+    /**
+     * @param array{delay: int, multiplier: int, jitter: float, retries: int, maxRetries: int} $retryState
+     * @return array{delay: int, multiplier: int, jitter: float, retries: int, maxRetries: int}
+     */
+    private function handleRetryableException(RetryableException $exception, array $retryState): array
+    {
+        if (++$retryState['retries'] >= $retryState['maxRetries']) {
             throw new TransportException($exception->getMessage(), 0, $exception);
         }
+
+        $retryState['delay'] *= $retryState['multiplier'];
+
+        $randomness = (int) ($retryState['delay'] * $retryState['jitter']);
+        $retryState['delay'] += random_int(-$randomness, +$randomness);
+
+        usleep($retryState['delay'] * 1000);
+
+        return $retryState;
+    }
+
+    private function handleGeneralException(\Exception $exception): void
+    {
+        if ($exception instanceof LogicException || $exception instanceof BaseLogicException) {
+            throw $exception;
+        }
+        throw new TransportException($exception->getMessage(), 0, $exception);
     }
 
     private function findDoctrineReceivedStamp(Envelope $envelope): DoctrineReceivedStamp
     {
-        /** @var DoctrineReceivedStamp|null $doctrineReceivedStamp */
         $doctrineReceivedStamp = $envelope->last(DoctrineReceivedStamp::class);
+        assert($doctrineReceivedStamp instanceof DoctrineReceivedStamp || null === $doctrineReceivedStamp);
 
         if (null === $doctrineReceivedStamp) {
             throw new LogicException('No DoctrineReceivedStamp found on the Envelope.');
@@ -137,7 +186,7 @@ class DoctrineReceiver implements ListableReceiverInterface, MessageCountAwareIn
 
     public function ack(Envelope $envelope): void
     {
-        $this->withRetryableExceptionRetry(function () use ($envelope) {
+        $this->withRetryableExceptionRetry(function () use ($envelope): void {
             $this->connection->ack($this->findDoctrineReceivedStamp($envelope)->getId());
         });
     }
@@ -153,6 +202,11 @@ class DoctrineReceiver implements ListableReceiverInterface, MessageCountAwareIn
             return $this->connection->getMessageCount();
         } catch (DBALException $exception) {
             throw new TransportException($exception->getMessage(), 0, $exception);
+        } catch (\Exception $exception) {
+            if ($exception instanceof LogicException || $exception instanceof BaseLogicException) {
+                throw $exception;
+            }
+            throw new TransportException($exception->getMessage(), 0, $exception);
         }
     }
 
@@ -161,6 +215,11 @@ class DoctrineReceiver implements ListableReceiverInterface, MessageCountAwareIn
         try {
             $doctrineEnvelopes = $this->connection->findAll($limit);
         } catch (DBALException $exception) {
+            throw new TransportException($exception->getMessage(), 0, $exception);
+        } catch (\Exception $exception) {
+            if ($exception instanceof LogicException || $exception instanceof BaseLogicException) {
+                throw $exception;
+            }
             throw new TransportException($exception->getMessage(), 0, $exception);
         }
 
@@ -174,6 +233,11 @@ class DoctrineReceiver implements ListableReceiverInterface, MessageCountAwareIn
         try {
             $doctrineEnvelope = $this->connection->find($id);
         } catch (DBALException $exception) {
+            throw new TransportException($exception->getMessage(), 0, $exception);
+        } catch (\Exception $exception) {
+            if ($exception instanceof LogicException || $exception instanceof BaseLogicException) {
+                throw $exception;
+            }
             throw new TransportException($exception->getMessage(), 0, $exception);
         }
 

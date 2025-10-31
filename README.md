@@ -1,6 +1,36 @@
 # AsyncMessengerBundle
 
-A Symfony bundle providing Redis and Doctrine transports for Symfony Messenger with support for delayed and scheduled messages.
+[English](README.md) | [中文](README.zh-CN.md)
+
+[![PHP](https://img.shields.io/badge/php-%5E8.1-blue)](https://www.php.net/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Symfony](https://img.shields.io/badge/symfony-%5E6.4-green)](https://symfony.com/)
+
+[![CI](https://github.com/tourze/php-monorepo/workflows/CI/badge.svg)](https://github.com/tourze/php-monorepo/actions)
+[![codecov](https://codecov.io/gh/tourze/php-monorepo/graph/badge.svg?flag=async-messenger-bundle)](https://codecov.io/gh/tourze/php-monorepo)
+
+A Symfony bundle providing Redis and Doctrine transports for Symfony Messenger 
+with support for delayed and scheduled messages.
+
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Configuration](#configuration)
+  - [Automatic Transport Registration](#automatic-transport-registration)
+  - [Environment Variables](#environment-variables)
+- [Using the Transports](#using-the-transports)
+  - [Basic Configuration](#basic-configuration)
+  - [Customizing Transport Configuration](#customizing-transport-configuration)
+- [Usage](#usage)
+  - [Basic Usage](#basic-usage)
+  - [Failover Transport](#failover-transport)
+  - [Failover Features](#failover-features)
+- [Advanced Usage](#advanced-usage)
+  - [Performance Tuning](#performance-tuning)
+  - [Monitoring and Debugging](#monitoring-and-debugging)
+- [Requirements](#requirements)
+- [License](#license)
 
 ## Features
 
@@ -37,8 +67,9 @@ The `async` transport uses our advanced failover mechanism with:
 - Automatic failover from Doctrine to Redis and vice versa
 - Self-healing with automatic recovery attempts
 
-**Important**: The failover transport creates its own instances of the underlying transports (async_doctrine and async_redis).
-This means it doesn't share connections or state with separately configured async_doctrine or async_redis transports.
+**Important**: The failover transport creates its own instances of the underlying 
+transports (async_doctrine and async_redis). This means it doesn't share connections 
+or state with separately configured async_doctrine or async_redis transports.
 
 ### Environment Variables
 
@@ -55,9 +86,12 @@ The transports are registered with these simple DSNs:
 - `async`: `failover://async_doctrine,async_redis`
 - `sync`: `sync://`
 
-All detailed configuration (table names, queue names, timeouts, etc.) is handled internally by the transport factories with sensible defaults.
+All detailed configuration (table names, queue names, timeouts, etc.) is handled 
+internally by the transport factories with sensible defaults.
 
-### Using the Transports
+## Using the Transports
+
+### Basic Configuration
 
 Once installed, the transports are automatically available in your messenger configuration:
 
@@ -143,17 +177,55 @@ framework:
             'App\Message\CriticalMessage': async_failover
 ```
 
-#### Failover Features
+### Failover Features
 
 1. **Circuit Breaker Pattern**: Prevents cascading failures by temporarily disabling failed transports
 2. **Multiple Consumption Strategies**:
-   - `round_robin`: Simple round-robin between healthy transports
-   - `weighted_round_robin`: Weights based on success rates
-   - `adaptive_priority`: Dynamic priority based on performance
-   - `latency_aware`: Selects transport with lowest latency
+    - `round_robin`: Simple round-robin between healthy transports
+    - `weighted_round_robin`: Weights based on success rates
+    - `adaptive_priority`: Dynamic priority based on performance
+    - `latency_aware`: Selects transport with lowest latency
 
 3. **Distributed Environment Support**: Each process maintains its own circuit breaker state
 4. **Automatic Recovery**: Failed transports are automatically retried after timeout
+
+## Advanced Usage
+
+### Performance Tuning
+
+For high-throughput applications, consider these configuration options:
+
+```yaml
+framework:
+    messenger:
+        transports:
+            async_redis:
+                dsn: 'async-redis://'
+                options:
+                    max_queue_size: 10000
+                    redeliver_timeout: 3600
+            
+            async_doctrine:
+                dsn: 'async-doctrine://'
+                options:
+                    table_name: 'messenger_messages'
+                    queue_name: 'high_priority'
+                    redeliver_timeout: 1800
+```
+
+### Monitoring and Debugging
+
+The bundle provides built-in monitoring capabilities through stamps and exceptions:
+
+```php
+use Tourze\AsyncMessengerBundle\Stamp\FailoverSourceStamp;
+
+// Check which transport processed a message
+$sourceStamp = $envelope->last(FailoverSourceStamp::class);
+if ($sourceStamp) {
+    echo "Message processed by: " . $sourceStamp->getTransportName();
+}
+```
 
 ## Requirements
 
@@ -161,3 +233,7 @@ framework:
 - Symfony 6.4+
 - Redis extension 4.3.0+ (for Redis transport)
 - Doctrine ORM (for Doctrine transport)
+
+## License
+
+This bundle is released under the MIT License. See the [LICENSE](LICENSE) file for details.

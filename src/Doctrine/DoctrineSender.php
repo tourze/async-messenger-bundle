@@ -38,12 +38,19 @@ class DoctrineSender implements SenderInterface
     {
         $encodedMessage = $this->serializer->encode($envelope);
 
-        /** @var DelayStamp|null $delayStamp */
         $delayStamp = $envelope->last(DelayStamp::class);
+        assert($delayStamp instanceof DelayStamp || null === $delayStamp);
         $delay = null !== $delayStamp ? $delayStamp->getDelay() : 0;
 
         try {
-            $id = $this->connection->send($encodedMessage['body'], $encodedMessage['headers'] ?? [], $delay);
+            $bodyValue = $encodedMessage['body'] ?? '';
+            $body = is_string($bodyValue) ? $bodyValue : '';
+
+            $headersValue = $encodedMessage['headers'] ?? [];
+            /** @var array<string, mixed> $headers */
+            $headers = is_array($headersValue) ? $headersValue : [];
+
+            $id = $this->connection->send($body, $headers, $delay);
         } catch (DBALException $exception) {
             throw new TransportException($exception->getMessage(), 0, $exception);
         }
