@@ -25,7 +25,7 @@
     "symfony/yaml": "^7.3",
     "tourze/async-contracts": "0.0.*",
     "tourze/bundle-dependency": "1.*",
-    "tourze/enum-extra": "0.1.*",
+    "tourze/enum-extra": "1.*",
     "tourze/redis-dedicated-connection-bundle": "0.0.*",
     "tourze/symfony-dependency-service-loader": "1.*"
   },
