@@ -21,12 +21,13 @@
     "symfony/framework-bundle": "^7.3",
     "symfony/http-kernel": "^7.3",
     "symfony/messenger": "^7.3",
+    "symfony/property-access": "^7.3",
     "symfony/service-contracts": "^3.6",
     "symfony/yaml": "^7.3",
     "tourze/async-contracts": "0.0.*",
     "tourze/bundle-dependency": "1.*",
     "tourze/enum-extra": "1.*",
-    "tourze/redis-dedicated-connection-bundle": "0.0.*",
+    "tourze/redis-dedicated-connection-bundle": "1.0.*",
     "tourze/symfony-dependency-service-loader": "1.*"
   },
   "require-dev": {
@@ -35,7 +36,7 @@
     "symfony/phpunit-bridge": "^7.3",
     "tourze/phpunit-base": "1.*",
     "tourze/phpunit-enum": "1.*",
-    "tourze/phpunit-symfony-kernel-test": "1.*",
+    "tourze/phpunit-symfony-kernel-test": "1.0.*",
     "tourze/phpunit-symfony-unit-test": "1.*"
   },
   "autoload": {
