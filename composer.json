@@ -26,9 +26,9 @@
     "symfony/yaml": "^7.3",
     "tourze/async-contracts": "0.0.*",
     "tourze/bundle-dependency": "1.*",
-    "tourze/enum-extra": "1.*",
+    "tourze/enum-extra": "1.0.*",
     "tourze/redis-dedicated-connection-bundle": "1.0.*",
-    "tourze/symfony-dependency-service-loader": "1.*"
+    "tourze/symfony-dependency-service-loader": "1.0.*"
   },
   "require-dev": {
     "phpstan/phpstan": "^2.1",
