@@ -24,7 +24,7 @@
     "symfony/property-access": "^7.3",
     "symfony/service-contracts": "^3.6",
     "symfony/yaml": "^7.3",
-    "tourze/async-contracts": "0.0.*",
+    "tourze/async-contracts": "1.0.*",
     "tourze/bundle-dependency": "1.*",
     "tourze/enum-extra": "1.0.*",
     "tourze/redis-dedicated-connection-bundle": "1.0.*",
