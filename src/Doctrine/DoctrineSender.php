@@ -47,7 +47,7 @@ class DoctrineSender implements SenderInterface
             $body = is_string($bodyValue) ? $bodyValue : '';
 
             $headersValue = $encodedMessage['headers'] ?? [];
-            /** @var array<string, mixed> $headers */
+            /** @var array<string, string> $headers */
             $headers = is_array($headersValue) ? $headersValue : [];
 
             $id = $this->connection->send($body, $headers, $delay);

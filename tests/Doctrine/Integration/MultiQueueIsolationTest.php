@@ -233,7 +233,8 @@ final class MultiQueueIsolationTest extends TestCase
 
         // 验证表已创建
         $schemaManager = $this->dbalConnection->createSchemaManager();
-        $tables = $schemaManager->listTableNames();
+        $tableNames = $schemaManager->introspectTableNames();
+        $tables = array_map(fn($name) => $name->getUnqualifiedName()->getValue(), $tableNames);
         $this->assertContains($testTableName, $tables);
 
         // 清理

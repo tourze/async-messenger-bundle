@@ -5,7 +5,7 @@ namespace Tourze\AsyncMessengerBundle\DependencyInjection;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Tourze\SymfonyDependencyServiceLoader\AppendDoctrineConnectionExtension;
 
-class AsyncMessengerExtension extends AppendDoctrineConnectionExtension
+final class AsyncMessengerExtension extends AppendDoctrineConnectionExtension
 {
     protected function getConfigDir(): string
     {

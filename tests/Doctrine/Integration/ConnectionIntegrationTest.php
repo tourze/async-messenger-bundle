@@ -41,7 +41,7 @@ final class ConnectionIntegrationTest extends TestCase
         $headers = $encodedEnvelope['headers'] ?? [];
         $this->assertIsString($body);
         $this->assertIsArray($headers);
-        /** @var array<string, mixed> $headers */
+        /** @var array<string, string> $headers */
         $messageId = $this->connection->send($body, $headers);
 
         // Assert
@@ -324,7 +324,7 @@ final class ConnectionIntegrationTest extends TestCase
         $headers = $encodedEnvelope['headers'] ?? [];
         $this->assertIsString($body);
         $this->assertIsArray($headers);
-        /** @var array<string, mixed> $headers */
+        /** @var array<string, string> $headers */
         $this->connection->send($body, $headers, $delayMs);
     }
 
@@ -476,7 +476,7 @@ final class ConnectionIntegrationTest extends TestCase
         $headers = $encodedEnvelope['headers'] ?? [];
         $this->assertIsString($body);
         $this->assertIsArray($headers);
-        /** @var array<string, mixed> $headers */
+        /** @var array<string, string> $headers */
 
         // Act
         $id1 = $this->connection->send($body, $headers);

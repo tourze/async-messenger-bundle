@@ -174,8 +174,15 @@ class RedisIntegrationTest extends TestCase
         $this->assertIsArray($message);
 
         $this->assertArrayHasKey('id', $message);
-        $this->assertArrayHasKey('body', $message);
-        $this->assertEquals('test message', $message['body']);
+        $this->assertArrayHasKey('data', $message);
+        $this->assertIsArray($message['data']);
+        $this->assertArrayHasKey('message', $message['data']);
+
+        // 解码 data.message JSON 以验证内容
+        $decodedMessage = json_decode($message['data']['message'], true);
+        $this->assertIsArray($decodedMessage);
+        $this->assertArrayHasKey('body', $decodedMessage);
+        $this->assertEquals('test message', $decodedMessage['body']);
     }
 
     public function testAck(): void

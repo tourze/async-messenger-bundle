@@ -10,7 +10,7 @@ use Tourze\SymfonyDependencyServiceLoader\AutoExtension;
  * @internal
  * 仅用于测试目的的模拟类
  */
-class MockFrameworkExtension extends AutoExtension
+final class MockFrameworkExtension extends AutoExtension
 {
     protected function getConfigDir(): string
     {

@@ -5,7 +5,7 @@ namespace Tourze\AsyncMessengerBundle\Doctrine;
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Platforms\OraclePlatform;
-use Doctrine\DBAL\Schema\AbstractAsset;
+use Doctrine\DBAL\Schema\NamedObject;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\SchemaDiff;
 use Doctrine\DBAL\Types\Types;
@@ -32,12 +32,12 @@ class SchemaManager
         $configuration = $this->connection->getConfiguration();
         $assetFilter = $configuration->getSchemaAssetsFilter();
         $configuration->setSchemaAssetsFilter(function ($tableName) {
-            if ($tableName instanceof AbstractAsset) {
-                $tableName = $tableName->getName();
+            if ($tableName instanceof NamedObject) {
+                $tableName = $tableName->getObjectName()->toString();
             }
 
             if (!\is_string($tableName)) {
-                throw new \TypeError(\sprintf('The table name must be an instance of "%s" or a string ("%s" given).', AbstractAsset::class, get_debug_type($tableName)));
+                throw new \TypeError(\sprintf('The table name must be an instance of "%s" or a string ("%s" given).', NamedObject::class, get_debug_type($tableName)));
             }
 
             $expectedTableName = $this->configuration['table_name'] ?? 'messenger_messages';
